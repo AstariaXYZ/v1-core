@@ -2,17 +2,17 @@ pragma solidity ^0.8.17;
 
 import "forge-std/console2.sol";
 
-import "./StarportTest.sol";
-
-import {AstariaV1Pricing} from "starport-core/pricing/AstariaV1Pricing.sol";
+import "starport-test/StarportTest.sol";
 
 import {BasePricing} from "starport-core/pricing/BasePricing.sol";
-import {AstariaV1Status} from "starport-core/status/AstariaV1Status.sol";
+import {AstariaV1Pricing} from "src/pricing/AstariaV1Pricing.sol";
 
-import {BaseRecall} from "starport-core/status/BaseRecall.sol";
+import {AstariaV1Status} from "src/status/AstariaV1Status.sol";
 
-import {AstariaV1Settlement} from "starport-core/settlement/AstariaV1Settlement.sol";
-import {AstariaV1LenderEnforcer} from "starport-core/enforcers/AstariaV1LenderEnforcer.sol";
+import {BaseRecall} from "src/status/BaseRecall.sol";
+
+import {AstariaV1Settlement} from "src/settlement/AstariaV1Settlement.sol";
+import {AstariaV1LenderEnforcer} from "src/enforcers/AstariaV1LenderEnforcer.sol";
 import {BorrowerEnforcer} from "starport-core/enforcers/BorrowerEnforcer.sol";
 // import "forge-std/console2.sol";
 import {CaveatEnforcer} from "starport-core/enforcers/CaveatEnforcer.sol";

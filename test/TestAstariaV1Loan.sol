@@ -1,8 +1,8 @@
 pragma solidity ^0.8.17;
 
-import "starport-test/AstariaV1Test.sol";
+import "test/AstariaV1Test.sol";
 
-import {BaseRecall} from "starport-core/status/BaseRecall.sol";
+import {BaseRecall} from "src/status/BaseRecall.sol";
 import "forge-std/console2.sol";
 import {StarportLib, Actions} from "starport-core/lib/StarportLib.sol";
 

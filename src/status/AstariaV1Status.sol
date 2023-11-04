@@ -1,7 +1,7 @@
 pragma solidity ^0.8.17;
 
 import {Starport} from "starport-core/Starport.sol";
-import {BaseRecall} from "starport-core/status/BaseRecall.sol";
+import {BaseRecall} from "./BaseRecall.sol";
 import {BaseStatus} from "starport-core/status/BaseStatus.sol";
 import {StarportLib} from "starport-core/lib/StarportLib.sol";
 

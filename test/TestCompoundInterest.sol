@@ -3,9 +3,9 @@ pragma solidity ^0.8.17;
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 import {StarportLib, AdditionalTransfer} from "starport-core/lib/StarportLib.sol";
 import {Starport} from "starport-core/Starport.sol";
-import {AstariaV1LenderEnforcer} from "starport-core/enforcers/AstariaV1LenderEnforcer.sol";
+import {AstariaV1LenderEnforcer} from "src/enforcers/AstariaV1LenderEnforcer.sol";
 
-import "../../../../test/AstariaV1Test.sol";
+import "./AstariaV1Test.sol";
 
 contract TestCompoundInterest is AstariaV1Test, AstariaV1LenderEnforcer {
     using FixedPointMathLib for uint256;
