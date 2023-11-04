@@ -1,0 +1,3 @@
+[submodule "lib/starport"]
+	path = lib/starport
+	url = https://github.com/AstariaXYZ/starport

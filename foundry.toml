@@ -1,0 +1,25 @@
+[profile.default]
+src = "src"
+out = "out"
+libs = ["lib"]
+remappings = [
+    "@openzeppelin/=lib/starport/lib/seaport/lib/openzeppelin-contracts/",
+    "@rari-capital/solmate/=lib/starport/lib/seaport/lib/solmate/",
+    "ds-test/=lib/starport/lib/seaport/lib/ds-test/src/",
+    "erc4626-tests/=lib/starport/lib/seaport/lib/openzeppelin-contracts/lib/erc4626-tests/",
+    "forge-std/=lib/starport/lib/forge-std/src/",
+    "murky/=lib/starport/lib/seaport/lib/murky/src/",
+    "openzeppelin-contracts/=lib/starport/lib/seaport/lib/openzeppelin-contracts/",
+    "seaport-core/=lib/starport/lib/seaport/lib/seaport-core/",
+    "seaport-sol/=lib/starport/lib/seaport/lib/seaport-sol/",
+    "seaport-types/=lib/starport/lib/seaport/lib/seaport-types/",
+    "seaport/=lib/starport/lib/seaport/",
+    "solady/=lib/starport/lib/solady/",
+    "solarray/=lib/starport/lib/seaport/lib/solarray/src/",
+    "solmate/=lib/starport/lib/solmate/src/",
+    "starport-core/=lib/starport/src/",
+    "starport-test/=lib/starport/test/",
+    "starport/=lib/starport/src/",
+]
+
+# See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options
