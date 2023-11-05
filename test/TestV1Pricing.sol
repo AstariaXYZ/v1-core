@@ -1,6 +1,6 @@
 pragma solidity ^0.8.17;
 
-import "../../../../test/AstariaV1Test.sol";
+import "test/AstariaV1Test.sol";
 import {StarportLib, Actions} from "starport-core/lib/StarportLib.sol";
 import {DeepEq} from "starport-test/utils/DeepEq.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
