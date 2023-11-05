@@ -13,38 +13,50 @@ contract AstariaV1LenderEnforcer is LenderEnforcer {
 
     error LoanAmountExceedsMaxAmount();
     error LoanAmountExceedsMaxRate();
+    error LoanRateInsufficient();
     error InterestAccrualRoundingMinimum();
 
-    int256 constant MAX_SIGNED_INT = 2 ** 255 - 1;
-    uint256 constant MAX_UNSIGNED_INT = 2 ** 256 - 1;
-
     uint256 constant MAX_AMOUNT = 1e27; // 1_000_000_000 ether
-    uint256 constant MAX_COMBINED_RATE_AND_DURATION = MAX_UNSIGNED_INT / MAX_AMOUNT;
-    int256 constant MAX_DURATION = int256(3 * 365 * 1 days); // 3 years
-    // int256 immutable MAX_RATE = int256(MAX_COMBINED_RATE_AND_DURATION).lnWad() / MAX_DURATION; // 780371100103 (IPR),  24.609783012848208000 (WAD), 2460.9783012848208000% (Percentage APY)
-    int256 constant MAX_RATE = int256(780371100103);
+    uint256 constant MAX_COMBINED_RATE_AND_DURATION = type(uint256).max / MAX_AMOUNT;
+    uint256 constant MAX_DURATION = 3 * 365 days; // 3 years
+
+    // int256(MAX_COMBINED_RATE_AND_DURATION).lnWad() / MAX_DURATION;
+    // 780371100103 (IPR),  24.609783012848208000 (WAD), 2460.9783012848208000% (Percentage APY)
+    uint256 constant MAX_RATE = uint256(int256(780371100103));
 
     function validate(
         AdditionalTransfer[] calldata additionalTransfers,
         Starport.Loan calldata loan,
         bytes calldata caveatData
     ) public view virtual override {
-        BasePricing.Details memory pricingDetails = abi.decode(loan.terms.pricingData, (BasePricing.Details));
+        LenderEnforcer.Details memory details = abi.decode(caveatData, (LenderEnforcer.Details));
 
-        if (loan.debt[0].amount > MAX_AMOUNT) {
+        BasePricing.Details memory caveatPricingDetails =
+            abi.decode(details.loan.terms.pricingData, (BasePricing.Details));
+
+        uint256 loanRate = abi.decode(loan.terms.pricingData, (BasePricing.Details)).rate;
+
+        if (loan.debt[0].amount > MAX_AMOUNT || loan.debt[0].amount > details.loan.debt[0].amount) {
             revert LoanAmountExceedsMaxAmount();
         }
 
-        if (pricingDetails.rate > uint256(MAX_SIGNED_INT) || int256(pricingDetails.rate) > MAX_RATE) {
+        if (loanRate > MAX_RATE) {
             revert LoanAmountExceedsMaxRate();
         }
 
+        if (loanRate < caveatPricingDetails.rate) {
+            revert LoanRateInsufficient();
+        }
+
         // calculate interest for 1 second of time
-        uint256 interest = StarportLib.calculateCompoundInterest(1, loan.debt[0].amount, pricingDetails.rate);
+        uint256 interest = StarportLib.calculateCompoundInterest(1, loan.debt[0].amount, loanRate);
         if (interest == 0) {
             // interest does not accrue at least 1 wei per second
             revert InterestAccrualRoundingMinimum();
         }
-        super.validate(additionalTransfers, loan, caveatData);
+
+        details.loan.debt[0].amount = loan.debt[0].amount;
+
+        _validate(additionalTransfers, loan, details);
     }
 }
