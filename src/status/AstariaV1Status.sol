@@ -2,7 +2,7 @@ pragma solidity ^0.8.17;
 
 import {Starport} from "starport-core/Starport.sol";
 import {BaseRecall} from "./BaseRecall.sol";
-import {BaseStatus} from "starport-core/status/BaseStatus.sol";
+import {BaseStatus} from "./BaseStatus.sol";
 import {StarportLib} from "starport-core/lib/StarportLib.sol";
 
 contract AstariaV1Status is BaseStatus, BaseRecall {
