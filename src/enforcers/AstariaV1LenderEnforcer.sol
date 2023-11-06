@@ -13,7 +13,6 @@ contract AstariaV1LenderEnforcer is LenderEnforcer {
 
     error LoanAmountExceedsMaxAmount();
     error LoanAmountExceedsMaxRate();
-    error LoanRateInsufficient();
     error InterestAccrualRoundingMinimum();
 
     uint256 constant MAX_AMOUNT = 1e27; // 1_000_000_000 ether
@@ -31,31 +30,59 @@ contract AstariaV1LenderEnforcer is LenderEnforcer {
     ) public view virtual override {
         LenderEnforcer.Details memory details = abi.decode(caveatData, (LenderEnforcer.Details));
 
-        BasePricing.Details memory caveatPricingDetails =
-            abi.decode(details.loan.terms.pricingData, (BasePricing.Details));
-
         uint256 loanRate = abi.decode(loan.terms.pricingData, (BasePricing.Details)).rate;
-
-        if (loan.debt[0].amount > MAX_AMOUNT || loan.debt[0].amount > details.loan.debt[0].amount) {
-            revert LoanAmountExceedsMaxAmount();
-        }
-
         if (loanRate > MAX_RATE) {
+            //Loan rate is greater than the max rate
             revert LoanAmountExceedsMaxRate();
         }
 
-        if (loanRate < caveatPricingDetails.rate) {
-            revert LoanRateInsufficient();
+        uint256 debtLength = loan.debt.length;
+        for (uint256 i = 0; i < debtLength;) {
+            uint256 loanAmount = loan.debt[i].amount;
+            if (loanAmount > MAX_AMOUNT || loanAmount > details.loan.debt[i].amount) {
+                //Debt amount is greater than the max amount or the caveat amount
+                revert LoanAmountExceedsMaxAmount();
+            }
+
+            if (StarportLib.calculateCompoundInterest(1 seconds, loanAmount, loanRate) == 0) {
+                // Interest does not accrue at least 1 wei per second
+                revert InterestAccrualRoundingMinimum();
+            }
+
+            details.loan.debt[i].amount = loanAmount;
+            unchecked {
+                ++i;
+            }
         }
 
-        // calculate interest for 1 second of time
-        uint256 interest = StarportLib.calculateCompoundInterest(1, loan.debt[0].amount, loanRate);
-        if (interest == 0) {
-            // interest does not accrue at least 1 wei per second
-            revert InterestAccrualRoundingMinimum();
-        }
+        ////NOTE: Bundles will not be supported by this check
+        //uint256 loanAmount = loan.debt[0].amount;
+        //if (loanAmount > MAX_AMOUNT || loanAmount > details.loan.debt[0].amount) {
+        //    //Debt amount is greater than the max amount or the caveat amount
+        //    revert LoanAmountExceedsMaxAmount();
+        //}
 
-        details.loan.debt[0].amount = loan.debt[0].amount;
+        //BasePricing.Details memory caveatPricingDetails =
+        //    abi.decode(details.loan.terms.pricingData, (BasePricing.Details));
+
+        ////revert if the loan rate is less than the caveat rate
+        //        if (loanRate < caveatPricingDetails.rate) {
+        //            revert LoanRateInsufficient();
+        //        }
+        //
+        ////update the caveat pricing details if the loan rate is higher
+        //if (loanRate > caveatPricingDetails.rate) {
+        //    caveatPricingDetails.rate = loanRate;
+        //    details.loan.terms.pricingData = abi.encode(caveatPricingDetails);
+        //}
+
+        //if (StarportLib.calculateCompoundInterest(1 seconds, loanAmount, loanRate) == 0) {
+        //    // Interest does not accrue at least 1 wei per second
+        //    revert InterestAccrualRoundingMinimum();
+        //}
+
+        ////Update the caveat amount to the loan amount
+        //details.loan.debt[0].amount = loanAmount;
 
         _validate(additionalTransfers, loan, details);
     }
