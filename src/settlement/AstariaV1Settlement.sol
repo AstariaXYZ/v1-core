@@ -54,7 +54,7 @@ contract AstariaV1Settlement is DutchAuctionSettlement {
         return start + details.recallWindow + 1;
     }
 
-    function getSettlement(Starport.Loan calldata loan)
+    function getSettlementConsideration(Starport.Loan calldata loan)
         public
         view
         virtual

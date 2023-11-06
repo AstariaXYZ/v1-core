@@ -279,7 +279,7 @@ contract TestAstariaV1Loan is AstariaV1Test {
                 }
             }
             (ReceivedItem[] memory settlementConsideration, address restricted) =
-                Settlement(loan.terms.settlement).getSettlement(loan);
+                Settlement(loan.terms.settlement).getSettlementConsideration(loan);
 
             assertEq(
                 settlementConsideration.length, 0, "Settlement consideration for a recalling Lender should be zero"
@@ -392,7 +392,7 @@ contract TestAstariaV1Loan is AstariaV1Test {
                 }
             }
             (ReceivedItem[] memory settlementConsideration, address restricted) =
-                Settlement(loan.terms.settlement).getSettlement(loan);
+                Settlement(loan.terms.settlement).getSettlementConsideration(loan);
 
             assertEq(
                 settlementConsideration.length,

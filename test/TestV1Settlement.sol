@@ -16,7 +16,7 @@ contract TestAstariaV1Settlement is AstariaV1Test, DeepEq {
     using {StarportLib.getId} for Starport.Loan;
     // recaller is not the lender, liquidation amount is a dutch auction
 
-    function testGetSettlementFailedDutchAuction() public {
+    function testgetSettlementConsiderationFailedDutchAuction() public {
         Starport.Terms memory terms = Starport.Terms({
             status: address(status),
             settlement: address(settlement),
@@ -41,12 +41,12 @@ contract TestAstariaV1Settlement is AstariaV1Test, DeepEq {
 
         vm.warp(auctionStart + details.window + 5);
         (ReceivedItem[] memory settlementConsideration, address restricted) =
-            Settlement(loan.terms.settlement).getSettlement(loan);
+            Settlement(loan.terms.settlement).getSettlementConsideration(loan);
         assertEq(settlementConsideration.length, 0, "Settlement consideration should be empty");
         assertEq(restricted, address(loan.issuer), "Restricted address should be loan.issuer");
     }
 
-    function testGetSettlementLoanNotRecalled() public {
+    function testgetSettlementConsiderationLoanNotRecalled() public {
         Starport.Terms memory terms = Starport.Terms({
             status: address(status),
             settlement: address(settlement),
@@ -60,10 +60,10 @@ contract TestAstariaV1Settlement is AstariaV1Test, DeepEq {
         uint256 loanId = loan.getId();
 
         vm.expectRevert(abi.encodeWithSelector(AstariaV1Settlement.LoanNotRecalled.selector));
-        Settlement(loan.terms.settlement).getSettlement(loan);
+        Settlement(loan.terms.settlement).getSettlementConsideration(loan);
     }
 
-    function testGetSettlementDutchAuctionSettlementAbove() public {
+    function testgetSettlementConsiderationDutchAuctionSettlementAbove() public {
         Starport.Terms memory terms = Starport.Terms({
             status: address(status),
             settlement: address(settlement),
@@ -101,7 +101,7 @@ contract TestAstariaV1Settlement is AstariaV1Test, DeepEq {
             BasePricing(loan.terms.pricing).getInterest(loan, pricingDetails.rate, loan.start, block.timestamp, 0);
         uint256 carry = interest.mulWad(pricingDetails.carryRate);
         (ReceivedItem[] memory settlementConsideration, address restricted) =
-            Settlement(loan.terms.settlement).getSettlement(loan);
+            Settlement(loan.terms.settlement).getSettlementConsideration(loan);
         BaseRecall.Details memory hookDetails = abi.decode(loan.terms.statusData, (BaseRecall.Details));
 
         assertEq(settlementConsideration[0].amount, carry, "Settlement 0 (originator payment) incorrect");
