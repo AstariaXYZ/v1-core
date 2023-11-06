@@ -53,4 +53,11 @@ abstract contract BaseRecallPricing is BasePricing {
             recallConsideration = new AdditionalTransfer[](0);
         }
     }
+
+    function validate(SpentItem[] memory debt, bytes calldata pricingData)
+        public
+        view
+        virtual
+        returns (bytes8 selector)
+    {}
 }
