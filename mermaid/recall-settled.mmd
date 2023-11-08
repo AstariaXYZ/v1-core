@@ -1,0 +1,42 @@
+sequenceDiagram
+	title Recalled Loan is Settled
+
+	Box rgb(33,66,0) Loan Origination
+		participant Borrower
+		participant Starport
+	end
+
+	Box rgb(0,33,99) Loan Recall
+		participant FulfillerA
+		participant V1Status
+	end
+
+	Box rgb(99,100,0) Loan Refinanced
+		participant Pricing
+		participant Settlement
+		participant Custodian
+	end
+
+	Box rgb(100,10,100) Seaport
+		participant Seaport
+		participant FulfillerB
+	end
+		Borrower->>Starport: originate
+		FulfillerA->>V1Status: recall
+		V1Status->>Pricing: calculateInterest
+		FulfillerA->>V1Status: Recall Stake Deposited
+		FulfillerB->>Seaport: fulfillAdvancedOrder
+		Seaport->>Custodian: generateOrder
+		Custodian->>V1Status: isActive
+		V1Status->>Custodian: (false)
+		Custodian->>Settlement: getSettlementConsideration
+		Settlement->>Custodian: (ReceviedItem[], address)
+		Custodian->>Custodian: _settleLoan
+		Custodian->>Starport: settle
+		Starport->>Starport: _settle
+		Custodian->>Settlement: postSettlement
+		opt attempt to withdraw to the refinancer
+			Settlement->>V1Status: withdraw
+			V1Status->>FulfillerB: Recall Stake Withdrawn
+		end
+
