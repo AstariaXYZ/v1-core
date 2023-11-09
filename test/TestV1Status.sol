@@ -30,7 +30,7 @@ contract TestAstariaV1Status is AstariaV1Test, DeepEq {
         Starport.Loan memory loan =
             _createLoan721Collateral20Debt({lender: lender.addr, borrowAmount: 1e18, terms: terms});
         uint256 loanId = loan.getId();
-        assert(AstariaV1Status(loan.terms.status).isActive(loan));
+        assert(AstariaV1Status(loan.terms.status).isActive(loan, ""));
     }
 
     function testIsRecalledInsideWindow() public {
@@ -57,7 +57,7 @@ contract TestAstariaV1Status is AstariaV1Test, DeepEq {
         AstariaV1Status(loan.terms.status).recall(loan);
         (address recaller, uint64 recallStart) = AstariaV1Status(loan.terms.status).recalls(loanId);
         skip(details.recallWindow - 1);
-        assert(AstariaV1Status(loan.terms.status).isActive(loan));
+        assert(AstariaV1Status(loan.terms.status).isActive(loan, ""));
         assert(AstariaV1Status(loan.terms.status).isRecalled(loan));
     }
 
@@ -192,7 +192,7 @@ contract TestAstariaV1Status is AstariaV1Test, DeepEq {
         AstariaV1Status(loan.terms.status).recall(loan);
         (address recaller, uint64 recallStart) = AstariaV1Status(loan.terms.status).recalls(loanId);
         skip(details.recallWindow + 1);
-        assert(!AstariaV1Status(loan.terms.status).isActive(loan));
+        assert(!AstariaV1Status(loan.terms.status).isActive(loan, ""));
         assert(!AstariaV1Status(loan.terms.status).isRecalled(loan));
     }
 

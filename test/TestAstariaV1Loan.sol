@@ -308,7 +308,7 @@ contract TestAstariaV1Loan is AstariaV1Test {
                 numerator: 1,
                 denominator: 1,
                 parameters: op,
-                extraData: abi.encode(Actions.Settlement, loan),
+                extraData: abi.encode(Custodian.Command(Actions.Settlement, loan, "")),
                 signature: ""
             });
 
@@ -444,7 +444,7 @@ contract TestAstariaV1Loan is AstariaV1Test {
                 numerator: 1,
                 denominator: 1,
                 parameters: op,
-                extraData: abi.encode(Actions.Settlement, activeLoan),
+                extraData: abi.encode(Custodian.Command(Actions.Settlement, activeLoan, "")),
                 signature: ""
             });
 
