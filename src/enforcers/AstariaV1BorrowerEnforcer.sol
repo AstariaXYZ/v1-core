@@ -60,7 +60,7 @@ contract AstariaV1BorrowerEnforcer is BorrowerEnforcer {
         returns (uint256 currentRate, uint256 currentAmount)
     {
         //if past endTime, use the final rate and amount
-        if (block.timestamp > v1Details.endTime) {
+        if (block.timestamp > v1Details.endTime || v1Details.startTime == v1Details.endTime) {
             return
                 (_getBasePricingRate(v1Details.details.loan.terms.pricingData), v1Details.details.loan.debt[0].amount);
         }
