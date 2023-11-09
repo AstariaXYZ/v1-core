@@ -136,16 +136,10 @@ contract TestV1BorrowerEnforcer is AstariaV1Test, AstariaV1BorrowerEnforcer {
         borrowerEnforcer.validate(new AdditionalTransfer[](0), loan, abi.encode(details));
     }
 
-    function testYulUpdate() public {
-        BorrowerEnforcer.Details memory details = BorrowerEnforcer.Details(generateDefaultLoanTerms());
-        bytes memory pricingData = details.loan.terms.pricingData;
-        BasePricing.Details memory pricing = abi.decode(pricingData, (BasePricing.Details));
-        uint256 rate;
-        uint offset;
-        assembly {
-            offset := sub(pricingData, details)
-            rate := mload(add(0x20, pricingData))
-        }
-        assertEq(rate, pricing.rate);
+    function testFuzzRateMethods(BasePricing.Details memory pricing, uint256 newRate) public {
+        bytes memory pricingData = abi.encode(pricing);
+        assertEq(_getBasePricingRate(pricingData), pricing.rate);
+        _setBasePricingRate(pricingData, newRate);
+        assertEq(newRate, abi.decode(pricingData, (BasePricing.Details)).rate);
     }
 }

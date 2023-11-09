@@ -11,6 +11,7 @@ contract AstariaV1LenderEnforcer is LenderEnforcer {
     error LoanAmountExceedsCaveatAmount();
     error DebtBundlesNotSupported();
 
+    //TODO: add strategy for supporting collection offers
     function validate(
         AdditionalTransfer[] calldata additionalTransfers,
         Starport.Loan calldata loan,
