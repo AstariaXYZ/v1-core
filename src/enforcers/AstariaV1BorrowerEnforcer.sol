@@ -1,23 +1,14 @@
 pragma solidity ^0.8.17;
-
 import {BorrowerEnforcer} from "starport-core/enforcers/BorrowerEnforcer.sol";
 import {AdditionalTransfer} from "starport-core/lib/StarportLib.sol";
 import {Starport} from "starport-core/Starport.sol";
 import {BasePricing} from "starport-core/pricing/BasePricing.sol";
-import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
-import {SpentItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
 import {StarportLib} from "starport-core/lib/StarportLib.sol";
-import {console} from "forge-std/console.sol";
+import {AstariaV1Lib} from "src/lib/AstariaV1Lib.sol";
 
 contract AstariaV1BorrowerEnforcer is BorrowerEnforcer {
-    using FixedPointMathLib for uint256;
-    using FixedPointMathLib for int256;
-
     error LoanAmountLessThanCurrentAmount();
-    error LoanAmountExceedsMaxAmount();
     error LoanRateExceedsCurrentRate();
-    error LoanRateExceedsMaxRate();
-    error InterestAccrualRoundingMinimum();
     error DebtBundlesNotSupported();
 
     struct V1BorrowerDetails {
@@ -27,14 +18,6 @@ contract AstariaV1BorrowerEnforcer is BorrowerEnforcer {
         uint256 startAmount;
         BorrowerEnforcer.Details details;
     }
-
-    uint256 constant MAX_AMOUNT = 1e27; // 1_000_000_000 ether
-    uint256 constant MAX_COMBINED_RATE_AND_DURATION = type(uint256).max / MAX_AMOUNT;
-    uint256 constant MAX_DURATION = 3 * 365 days; // 3 years
-
-    // int256(MAX_COMBINED_RATE_AND_DURATION).lnWad() / MAX_DURATION;
-    // 780371100103 (IPR),  24.609783012848208000 (WAD), 2460.9783012848208000% (Percentage APY)
-    uint256 constant MAX_RATE = uint256(int256(780371100103));
 
     function validate(
         AdditionalTransfer[] calldata additionalTransfers,
@@ -46,20 +29,9 @@ contract AstariaV1BorrowerEnforcer is BorrowerEnforcer {
         }
 
         uint256 loanRate = abi.decode(loan.terms.pricingData, (BasePricing.Details)).rate;
-        if (loanRate > MAX_RATE) {
-            //Loan rate is greater than the max rate
-            revert LoanRateExceedsMaxRate();
-        }
 
         uint256 loanAmount = loan.debt[0].amount;
-        if (StarportLib.calculateCompoundInterest(1 seconds, loanAmount, loanRate) == 0) {
-            // Interest does not accrue at least 1 wei per second
-            revert InterestAccrualRoundingMinimum();
-        }
-        if (loanAmount > MAX_AMOUNT) {
-            //Debt amount is greater than the max amount
-            revert LoanAmountExceedsMaxAmount();
-        }
+        AstariaV1Lib.validateCompoundInterest(loanAmount, loanRate);
 
         V1BorrowerDetails memory v1Details = abi.decode(caveatData, (V1BorrowerDetails));
         BorrowerEnforcer.Details memory details = v1Details.details;
