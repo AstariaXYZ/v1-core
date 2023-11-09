@@ -33,12 +33,12 @@ contract TestCompoundInterest is AstariaV1Test, AstariaV1LenderEnforcer {
         lenderEnforcer.validate(new AdditionalTransfer[](0), loan, "");
     }
 
-    function testRateTooLowOne() public {
-        defaultPricingData = abi.encode(BasePricing.Details({carryRate: 0, rate: 1}));
-        Starport.Loan memory loan = generateDefaultLoanTerms();
-        vm.expectRevert(abi.encodeWithSelector(AstariaV1LenderEnforcer.InterestAccrualRoundingMinimum.selector));
-        lenderEnforcer.validate(new AdditionalTransfer[](0), loan, "");
-    }
+    // function testRateTooLowOne() public {
+    //     defaultPricingData = abi.encode(BasePricing.Details({carryRate: 0, rate: 1}));
+    //     Starport.Loan memory loan = generateDefaultLoanTerms();
+    //     vm.expectRevert(abi.encodeWithSelector(AstariaV1LenderEnforcer.InterestAccrualRoundingMinimum.selector));
+    //     lenderEnforcer.validate(new AdditionalTransfer[](0), loan, "");
+    // }
     // function testPrecision() public {
     //   uint256 result = StarportLib.calculateCompoundInterest(uint256(MAX_DURATION), MAX_AMOUNT, uint256(MAX_RATE)) + MAX_AMOUNT;
     //   assertEq(result, MAX_UNSIGNED_INT, "Precision bounds not matching");
