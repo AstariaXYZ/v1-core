@@ -13,7 +13,7 @@ contract TestCompoundInterest is AstariaV1Test, AstariaV1LenderEnforcer {
 
     function testRateMax() public {
         assertLt(MAX_RATE, uint256(type(int256).max));
-//        assertEq(MAX_RATE, uint256(int256(MAX_COMBINED_RATE_AND_DURATION).lnWad() / MAX_DURATION));
+        //        assertEq(MAX_RATE, uint256(int256(MAX_COMBINED_RATE_AND_DURATION).lnWad() / MAX_DURATION));
 
         defaultPricingData = abi.encode(BasePricing.Details({carryRate: 0, rate: uint256(MAX_RATE) + 1}));
         Starport.Loan memory loan = generateDefaultLoanTerms();
