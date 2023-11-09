@@ -68,13 +68,13 @@ contract TestV1BorrowerEnforcer is AstariaV1Test, AstariaV1BorrowerEnforcer {
 
         //revert if startTime > endTime
         vm.expectRevert(stdError.arithmeticError);
-        _locateCurrentRateAndAmount(details, abi.decode(defaultPricingData, (BasePricing.Details)));
+        _locateCurrentRateAndAmount(details);
 
         details.endTime = block.timestamp + 20 minutes;
 
         //revert if startTime > current time
         vm.expectRevert(stdError.arithmeticError);
-        _locateCurrentRateAndAmount(details, abi.decode(defaultPricingData, (BasePricing.Details)));
+        _locateCurrentRateAndAmount(details);
     }
 
     function testV1BorrowerEnforcerHalfway() public {
@@ -134,5 +134,18 @@ contract TestV1BorrowerEnforcer is AstariaV1Test, AstariaV1BorrowerEnforcer {
         vm.warp(block.timestamp + 5 minutes);
 
         borrowerEnforcer.validate(new AdditionalTransfer[](0), loan, abi.encode(details));
+    }
+
+    function testYulUpdate() public {
+        BorrowerEnforcer.Details memory details = BorrowerEnforcer.Details(generateDefaultLoanTerms());
+        bytes memory pricingData = details.loan.terms.pricingData;
+        BasePricing.Details memory pricing = abi.decode(pricingData, (BasePricing.Details));
+        uint256 rate;
+        uint offset;
+        assembly {
+            offset := sub(pricingData, details)
+            rate := mload(add(0x20, pricingData))
+        }
+        assertEq(rate, pricing.rate);
     }
 }
