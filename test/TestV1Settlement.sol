@@ -16,7 +16,7 @@ contract TestAstariaV1Settlement is AstariaV1Test, DeepEq {
     using {StarportLib.getId} for Starport.Loan;
     // recaller is not the lender, liquidation amount is a dutch auction
 
-    function testgetSettlementConsiderationFailedDutchAuction() public {
+    function testGetSettlementConsiderationFailedDutchAuction() public {
         Starport.Terms memory terms = Starport.Terms({
             status: address(status),
             settlement: address(settlement),
@@ -46,7 +46,7 @@ contract TestAstariaV1Settlement is AstariaV1Test, DeepEq {
         assertEq(restricted, address(loan.issuer), "Restricted address should be loan.issuer");
     }
 
-    function testgetSettlementConsiderationLoanNotRecalled() public {
+    function testGetSettlementConsiderationLoanNotRecalled() public {
         Starport.Terms memory terms = Starport.Terms({
             status: address(status),
             settlement: address(settlement),
@@ -63,7 +63,7 @@ contract TestAstariaV1Settlement is AstariaV1Test, DeepEq {
         Settlement(loan.terms.settlement).getSettlementConsideration(loan);
     }
 
-    function testgetSettlementConsiderationDutchAuctionSettlementAbove() public {
+    function testGetSettlementConsiderationDutchAuctionSettlementAbove() public {
         Starport.Terms memory terms = Starport.Terms({
             status: address(status),
             settlement: address(settlement),
