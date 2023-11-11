@@ -26,7 +26,9 @@ contract AstariaV1LenderEnforcer is LenderEnforcer {
 
         uint256 loanRate = abi.decode(loan.terms.pricingData, (BasePricing.Details)).rate;
         uint256 loanAmount = loan.debt[0].amount;
-        AstariaV1Lib.validateCompoundInterest(loanAmount, loanRate);
+        uint256 recallMax = AstariaV1Lib.getBaseRecallRecallMax(loan.terms.statusData);
+        uint256 decimals = AstariaV1Lib.getBasePricingDecimals(loan.terms.pricingData);
+        AstariaV1Lib.validateCompoundInterest(loanAmount, loanRate, recallMax, decimals);
 
         LenderEnforcer.Details memory details = abi.decode(caveatData, (LenderEnforcer.Details));
         SpentItem memory caveatDebt = details.loan.debt[0];

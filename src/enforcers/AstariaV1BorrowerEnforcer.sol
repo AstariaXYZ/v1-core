@@ -30,9 +30,10 @@ contract AstariaV1BorrowerEnforcer is BorrowerEnforcer {
         }
 
         uint256 loanRate = abi.decode(loan.terms.pricingData, (BasePricing.Details)).rate;
-
         uint256 loanAmount = loan.debt[0].amount;
-        AstariaV1Lib.validateCompoundInterest(loanAmount, loanRate);
+        uint256 recallMax = AstariaV1Lib.getBaseRecallRecallMax(loan.terms.statusData);
+        uint256 decimals = AstariaV1Lib.getBasePricingDecimals(loan.terms.pricingData);
+        AstariaV1Lib.validateCompoundInterest(loanAmount, loanRate, recallMax, decimals);
 
         V1BorrowerDetails memory v1Details = abi.decode(caveatData, (V1BorrowerDetails));
 

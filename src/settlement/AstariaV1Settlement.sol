@@ -90,10 +90,11 @@ contract AstariaV1Settlement is DutchAuctionSettlement {
         consideration = new ReceivedItem[](3);
         uint256 i = 0;
         BasePricing.Details memory pricingDetails = abi.decode(loan.terms.pricingData, (BasePricing.Details));
-        uint256 interest =
-            BasePricing(loan.terms.pricing).getInterest(loan, pricingDetails.rate, loan.start, block.timestamp, 0);
+        uint256 interest = BasePricing(loan.terms.pricing).getInterest(
+            loan, pricingDetails.rate, loan.start, block.timestamp, 0, pricingDetails.decimals
+        );
 
-        uint256 carry = interest.mulWad(pricingDetails.carryRate);
+        uint256 carry = (interest * pricingDetails.carryRate) / 10 ** pricingDetails.decimals;
 
         if (carry > 0 && loan.debt[0].amount + interest - carry < settlementPrice) {
             uint256 excess = settlementPrice - loan.debt[0].amount + interest - carry;
@@ -112,12 +113,13 @@ contract AstariaV1Settlement is DutchAuctionSettlement {
 
         BaseRecall.Details memory hookDetails = abi.decode(loan.terms.statusData, (BaseRecall.Details));
 
-        uint256 recallerReward = (settlementPrice).mulWad(hookDetails.recallerRewardRatio);
+        uint256 recallerReward = (settlementPrice * hookDetails.recallerRewardRatio) / 10 ** pricingDetails.decimals;
+
         if (recallerReward > 0) {
             consideration[i] = ReceivedItem({
                 itemType: loan.debt[0].itemType,
                 identifier: loan.debt[0].identifier,
-                amount: settlementPrice.mulWad(hookDetails.recallerRewardRatio),
+                amount: recallerReward,
                 token: loan.debt[0].token,
                 recipient: payable(recaller)
             });

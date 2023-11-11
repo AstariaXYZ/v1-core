@@ -3,8 +3,8 @@ pragma solidity ^0.8.17;
 import "test/AstariaV1Test.sol";
 
 import {BaseRecall} from "src/status/BaseRecall.sol";
-import "forge-std/console2.sol";
 import {StarportLib, Actions} from "starport-core/lib/StarportLib.sol";
+import {AstariaV1Lib} from "src/lib/AstariaV1Lib.sol";
 
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 
@@ -52,7 +52,7 @@ contract TestAstariaV1Loan is AstariaV1Test {
 
             refinanceLoan(
                 loan,
-                abi.encode(BasePricing.Details({rate: (uint256(1e16) * 100) / (365 * 1 days), carryRate: 0})),
+                abi.encode(BasePricing.Details({rate: (uint256(1e16) * 100), carryRate: 0, decimals: 18})),
                 refinancer.addr,
                 lenderCaveat,
                 refinancer.addr,
@@ -76,7 +76,7 @@ contract TestAstariaV1Loan is AstariaV1Test {
 
             BasePricing.Details memory pricingDetails = abi.decode(loan.terms.pricingData, (BasePricing.Details));
             stake = BasePricing(address(pricing)).calculateInterest(
-                details.recallStakeDuration, loan.debt[0].amount, pricingDetails.rate
+                details.recallStakeDuration, loan.debt[0].amount, pricingDetails.rate, pricingDetails.decimals
             );
             assertEq(balanceBefore - stake, balanceAfter, "Recaller balance not transfered correctly");
             assertEq(
@@ -118,7 +118,7 @@ contract TestAstariaV1Loan is AstariaV1Test {
             });
             refinanceLoan(
                 loan,
-                abi.encode(BasePricing.Details({rate: (uint256(1e16) * 100) / (365 * 1 days), carryRate: 0})),
+                abi.encode(BasePricing.Details({rate: (uint256(1e16) * 100), carryRate: 0, decimals: 18})),
                 refinancer.addr,
                 lenderCaveat,
                 refinancer.addr,
@@ -135,7 +135,8 @@ contract TestAstariaV1Loan is AstariaV1Test {
             BaseRecall.Details memory details = abi.decode(loan.terms.statusData, (BaseRecall.Details));
             vm.warp(block.timestamp + (details.recallWindow / 2));
 
-            bytes memory pricingData = abi.encode(BasePricing.Details({rate: details.recallMax / 2, carryRate: 0}));
+            bytes memory pricingData =
+                abi.encode(BasePricing.Details({rate: details.recallMax / 2, carryRate: 0, decimals: 18}));
             {
                 LenderEnforcer.Details memory refinanceDetails = getRefinanceDetails(loan, pricingData, refinancer.addr);
                 console.log("here");
@@ -159,8 +160,9 @@ contract TestAstariaV1Loan is AstariaV1Test {
             uint256 interest;
             {
                 uint256 delta_t = block.timestamp - loan.start;
-                interest =
-                    BasePricing(address(pricing)).calculateInterest(delta_t, loan.debt[0].amount, pricingDetails.rate);
+                interest = BasePricing(address(pricing)).calculateInterest(
+                    delta_t, loan.debt[0].amount, pricingDetails.rate, pricingDetails.decimals
+                );
 
                 uint256 oldLenderAfter = erc20s[0].balanceOf(lender.addr);
                 assertEq(
@@ -243,7 +245,7 @@ contract TestAstariaV1Loan is AstariaV1Test {
 
             BasePricing.Details memory pricingDetails = abi.decode(loan.terms.pricingData, (BasePricing.Details));
             stake = BasePricing(address(pricing)).calculateInterest(
-                details.recallStakeDuration, loan.debt[0].amount, pricingDetails.rate
+                details.recallStakeDuration, loan.debt[0].amount, pricingDetails.rate, pricingDetails.decimals
             );
             // lender is not required to provide a stake to recall
             assertEq(balanceBefore, erc20s[0].balanceOf(lender.addr), "Recaller balance not transfered correctly");
@@ -357,7 +359,7 @@ contract TestAstariaV1Loan is AstariaV1Test {
 
             BasePricing.Details memory pricingDetails = abi.decode(loan.terms.pricingData, (BasePricing.Details));
             stake = BasePricing(address(pricing)).calculateInterest(
-                details.recallStakeDuration, loan.debt[0].amount, pricingDetails.rate
+                details.recallStakeDuration, loan.debt[0].amount, pricingDetails.rate, pricingDetails.decimals
             );
             assertEq(balanceBefore - stake, balanceAfter, "Recaller balance not transfered correctly");
             assertEq(
@@ -400,8 +402,9 @@ contract TestAstariaV1Loan is AstariaV1Test {
             AdditionalTransfer[] memory extraPayment;
             {
                 BasePricing.Details memory pricingDetails = abi.decode(loan.terms.pricingData, (BasePricing.Details));
-                uint256 interest =
-                    StarportLib.calculateCompoundInterest(elapsedTime, loan.debt[0].amount, pricingDetails.rate);
+                uint256 interest = AstariaV1Lib.calculateCompoundInterest(
+                    elapsedTime, loan.debt[0].amount, pricingDetails.rate, pricingDetails.decimals
+                );
                 uint256 carry = interest.mulWad(pricingDetails.carryRate);
                 uint256 settlementPrice = 500 ether - carry;
                 uint256 recallerReward = settlementPrice.mulWad(10e16);
@@ -415,7 +418,7 @@ contract TestAstariaV1Loan is AstariaV1Test {
                     "Settlement consideration for lender incorrect"
                 );
                 extraPayment = AstariaV1Status(activeLoan.terms.status).generateRecallConsideration(
-                    activeLoan, 1e18, activeLoan.terms.status, address(this)
+                    activeLoan, 0, activeLoan.terms.status, address(this)
                 );
             }
             ConsiderationItem[] memory consider = new ConsiderationItem[](
