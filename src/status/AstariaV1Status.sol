@@ -10,7 +10,7 @@ contract AstariaV1Status is BaseStatus, BaseRecall {
 
     constructor(Starport SP_) BaseRecall(SP_) {}
 
-    function isActive(Starport.Loan calldata loan) external view override returns (bool) {
+    function isActive(Starport.Loan calldata loan, bytes calldata) external view override returns (bool) {
         Details memory details = abi.decode(loan.terms.statusData, (Details));
         uint256 tokenId = loan.getId();
         uint64 start = recalls[tokenId].start;

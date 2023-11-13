@@ -155,12 +155,13 @@ contract TestAstariaV1Loan is AstariaV1Test {
                 console.log("here2", stake);
             }
 
-            uint256 delta_t = block.timestamp - loan.start;
             BasePricing.Details memory pricingDetails = abi.decode(loan.terms.pricingData, (BasePricing.Details));
-            uint256 interest =
-                BasePricing(address(pricing)).calculateInterest(delta_t, loan.debt[0].amount, pricingDetails.rate);
-
+            uint256 interest;
             {
+                uint256 delta_t = block.timestamp - loan.start;
+                interest =
+                    BasePricing(address(pricing)).calculateInterest(delta_t, loan.debt[0].amount, pricingDetails.rate);
+
                 uint256 oldLenderAfter = erc20s[0].balanceOf(lender.addr);
                 assertEq(
                     oldLenderAfter,
@@ -203,8 +204,8 @@ contract TestAstariaV1Loan is AstariaV1Test {
             }
         }
         {
-            uint256 recallContractBalanceBefore = erc20s[0].balanceOf(address(status));
-            BaseRecall recallContract = BaseRecall(address(status));
+            // uint256 recallContractBalanceBefore = erc20s[0].balanceOf(address(status));
+            // BaseRecall recallContract = BaseRecall(address(status));
 
             // attempt a withdraw after the loan has been successfully refinanced
             //            recallContract.withdraw(loan, payable(address(this)));
@@ -226,7 +227,6 @@ contract TestAstariaV1Loan is AstariaV1Test {
         });
         Starport.Loan memory loan =
             _createLoan721Collateral20Debt({lender: lender.addr, borrowAmount: 1e18, terms: terms});
-        uint256 loanId = loan.getId();
 
         uint256 stake;
         {
@@ -241,18 +241,15 @@ contract TestAstariaV1Loan is AstariaV1Test {
             recallContract.recall(loan);
             vm.stopPrank();
 
-            uint256 balanceAfter = erc20s[0].balanceOf(lender.addr);
-            uint256 recallContractBalanceAfter = erc20s[0].balanceOf(address(status));
-
             BasePricing.Details memory pricingDetails = abi.decode(loan.terms.pricingData, (BasePricing.Details));
             stake = BasePricing(address(pricing)).calculateInterest(
                 details.recallStakeDuration, loan.debt[0].amount, pricingDetails.rate
             );
             // lender is not required to provide a stake to recall
-            assertEq(balanceBefore, balanceAfter, "Recaller balance not transfered correctly");
+            assertEq(balanceBefore, erc20s[0].balanceOf(lender.addr), "Recaller balance not transfered correctly");
             assertEq(
                 recallContractBalanceBefore,
-                recallContractBalanceAfter,
+                erc20s[0].balanceOf(address(status)),
                 "Balance not transfered to recall contract correctly"
             );
         }
@@ -279,7 +276,7 @@ contract TestAstariaV1Loan is AstariaV1Test {
                 }
             }
             (ReceivedItem[] memory settlementConsideration, address restricted) =
-                Settlement(loan.terms.settlement).getSettlement(loan);
+                Settlement(loan.terms.settlement).getSettlementConsideration(loan);
 
             assertEq(
                 settlementConsideration.length, 0, "Settlement consideration for a recalling Lender should be zero"
@@ -308,7 +305,7 @@ contract TestAstariaV1Loan is AstariaV1Test {
                 numerator: 1,
                 denominator: 1,
                 parameters: op,
-                extraData: abi.encode(Actions.Settlement, loan),
+                extraData: abi.encode(Custodian.Command(Actions.Settlement, loan, "")),
                 signature: ""
             });
 
@@ -338,7 +335,7 @@ contract TestAstariaV1Loan is AstariaV1Test {
         });
         Starport.Loan memory loan =
             _createLoan721Collateral20Debt({lender: lender.addr, borrowAmount: 1e18, terms: terms});
-        uint256 loanId = loan.getId();
+        //uint256 loanId = loan.getId();
 
         loan.toStorage(activeLoan);
         uint256 elapsedTime;
@@ -392,7 +389,7 @@ contract TestAstariaV1Loan is AstariaV1Test {
                 }
             }
             (ReceivedItem[] memory settlementConsideration, address restricted) =
-                Settlement(loan.terms.settlement).getSettlement(loan);
+                Settlement(loan.terms.settlement).getSettlementConsideration(loan);
 
             assertEq(
                 settlementConsideration.length,
@@ -444,7 +441,7 @@ contract TestAstariaV1Loan is AstariaV1Test {
                 numerator: 1,
                 denominator: 1,
                 parameters: op,
-                extraData: abi.encode(Actions.Settlement, activeLoan),
+                extraData: abi.encode(Custodian.Command(Actions.Settlement, activeLoan, "")),
                 signature: ""
             });
 

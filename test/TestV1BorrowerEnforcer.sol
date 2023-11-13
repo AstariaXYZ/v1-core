@@ -4,7 +4,7 @@ import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 import {StarportLib, AdditionalTransfer} from "starport-core/lib/StarportLib.sol";
 import {Starport} from "starport-core/Starport.sol";
 import {AstariaV1BorrowerEnforcer} from "src/enforcers/AstariaV1BorrowerEnforcer.sol";
-
+import {AstariaV1Lib} from "src/lib/AstariaV1Lib.sol";
 import "./AstariaV1Test.sol";
 
 contract TestV1BorrowerEnforcer is AstariaV1Test, AstariaV1BorrowerEnforcer {
