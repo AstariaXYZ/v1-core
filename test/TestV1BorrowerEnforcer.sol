@@ -138,8 +138,8 @@ contract TestV1BorrowerEnforcer is AstariaV1Test, AstariaV1BorrowerEnforcer {
 
     function testFuzzRateMethods(BasePricing.Details memory pricing, uint256 newRate) public {
         bytes memory pricingData = abi.encode(pricing);
-        assertEq(_getBasePricingRate(pricingData), pricing.rate);
-        _setBasePricingRate(pricingData, newRate);
+        assertEq(AstariaV1Lib.getBasePricingRate(pricingData), pricing.rate);
+        AstariaV1Lib.setBasePricingRate(pricingData, newRate);
         assertEq(newRate, abi.decode(pricingData, (BasePricing.Details)).rate);
     }
 }

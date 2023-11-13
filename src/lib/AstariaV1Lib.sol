@@ -44,4 +44,16 @@ library AstariaV1Lib {
             revert LoanAmountExceedsMaxAmount();
         }
     }
+
+    function getBasePricingRate(bytes memory pricingData) internal pure returns (uint256 rate) {
+        assembly {
+            rate := mload(add(0x20, pricingData))
+        }
+    }
+
+    function setBasePricingRate(bytes memory pricingData, uint256 newRate) internal pure {
+        assembly {
+            mstore(add(0x20, pricingData), newRate)
+        }
+    }
 }

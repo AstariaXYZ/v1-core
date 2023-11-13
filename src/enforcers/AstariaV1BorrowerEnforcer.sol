@@ -49,7 +49,7 @@ contract AstariaV1BorrowerEnforcer is BorrowerEnforcer {
         }
 
         BorrowerEnforcer.Details memory details = v1Details.details;
-        _setBasePricingRate(details.loan.terms.pricingData, loanRate);
+        AstariaV1Lib.setBasePricingRate(details.loan.terms.pricingData, loanRate);
         details.loan.debt[0].amount = loanAmount;
         _validate(additionalTransfers, loan, details);
     }
@@ -61,8 +61,10 @@ contract AstariaV1BorrowerEnforcer is BorrowerEnforcer {
     {
         //if past endTime, use the final rate and amount
         if (block.timestamp > v1Details.endTime || v1Details.startTime == v1Details.endTime) {
-            return
-                (_getBasePricingRate(v1Details.details.loan.terms.pricingData), v1Details.details.loan.debt[0].amount);
+            return (
+                AstariaV1Lib.getBasePricingRate(v1Details.details.loan.terms.pricingData),
+                v1Details.details.loan.debt[0].amount
+            );
         }
 
         //will revert if startTime > endTime
@@ -70,7 +72,7 @@ contract AstariaV1BorrowerEnforcer is BorrowerEnforcer {
         uint256 elapsed;
         uint256 remaining;
         unchecked {
-            //block.timestamp <= endTime && startTime <= endTime, can't overflow
+            //block.timestamp <= endTime && startTime < endTime, can't overflow
             elapsed = block.timestamp - v1Details.startTime;
             //block.timestamp <= endTime, can't underflow
             remaining = duration - elapsed;
@@ -80,7 +82,7 @@ contract AstariaV1BorrowerEnforcer is BorrowerEnforcer {
         //weight startRate by the remaining time, and maxRate by the elapsed time
         currentRate = _locateCurrent(
             v1Details.startRate,
-            _getBasePricingRate(v1Details.details.loan.terms.pricingData),
+            AstariaV1Lib.getBasePricingRate(v1Details.details.loan.terms.pricingData),
             remaining,
             elapsed,
             duration
@@ -109,17 +111,5 @@ contract AstariaV1BorrowerEnforcer is BorrowerEnforcer {
 
         //minVal == maxVal,
         return a;
-    }
-
-    function _getBasePricingRate(bytes memory pricingData) internal pure returns (uint256 rate) {
-        assembly {
-            rate := mload(add(0x20, pricingData))
-        }
-    }
-
-    function _setBasePricingRate(bytes memory pricingData, uint256 newRate) internal pure {
-        assembly {
-            mstore(add(0x20, pricingData), newRate)
-        }
     }
 }

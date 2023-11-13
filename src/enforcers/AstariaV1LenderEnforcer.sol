@@ -9,6 +9,7 @@ import {AstariaV1Lib} from "src/lib/AstariaV1Lib.sol";
 
 contract AstariaV1LenderEnforcer is LenderEnforcer {
     error LoanAmountExceedsCaveatAmount();
+    error LoanRateLessThanCaveatRate();
     error DebtBundlesNotSupported();
 
     //TODO: add strategy for supporting collection offers
@@ -33,6 +34,12 @@ contract AstariaV1LenderEnforcer is LenderEnforcer {
             revert LoanAmountExceedsCaveatAmount();
         }
 
+        if (loanRate < AstariaV1Lib.getBasePricingRate(details.loan.terms.pricingData)) {
+            //Loan rate is less than the caveatDebt rate
+            revert LoanRateLessThanCaveatRate();
+        }
+
+        AstariaV1Lib.setBasePricingRate(details.loan.terms.pricingData, loanRate);
         caveatDebt.amount = loanAmount;
         _validate(additionalTransfers, loan, details);
     }
