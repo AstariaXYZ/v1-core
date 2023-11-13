@@ -4,6 +4,7 @@ import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 import {StarportLib, AdditionalTransfer} from "starport-core/lib/StarportLib.sol";
 import {Starport} from "starport-core/Starport.sol";
 import {AstariaV1LenderEnforcer} from "src/enforcers/AstariaV1LenderEnforcer.sol";
+import {AstariaV1Lib} from "src/lib/AstariaV1Lib.sol";
 
 import "./AstariaV1Test.sol";
 import "forge-std/console2.sol";
@@ -12,19 +13,12 @@ contract TestCompoundInterest is AstariaV1Test, AstariaV1LenderEnforcer {
     using FixedPointMathLib for uint256;
     using FixedPointMathLib for int256;
 
-    function testRateTooLowZero() public {
-        defaultPricingData = abi.encode(BasePricing.Details({carryRate: 0, rate: 0}));
-        Starport.Loan memory loan = generateDefaultLoanTerms();
-        vm.expectRevert(abi.encodeWithSelector(AstariaV1LenderEnforcer.InterestAccrualRoundingMinimum.selector));
-        lenderEnforcer.validate(new AdditionalTransfer[](0), loan, "");
-    }
-
     function testRateTooLowOne() public {
         defaultPricingData = abi.encode(BasePricing.Details({carryRate: 0, rate: 1}));
         Starport.Loan memory loan = generateDefaultLoanTerms();
-        loan.debt[0].amount = 1;
-        vm.expectRevert(abi.encodeWithSelector(AstariaV1LenderEnforcer.InterestAccrualRoundingMinimum.selector));
-        lenderEnforcer.validate(new AdditionalTransfer[](0), loan, "");
+        bytes memory caveatData = _generateSignedCaveatLender(loan, lender, 0).caveat[0].data;
+        vm.expectRevert(abi.encodeWithSelector(AstariaV1Lib.InterestAccrualRoundingMinimum.selector));
+        lenderEnforcer.validate(new AdditionalTransfer[](0), loan, caveatData);
     }
 
     function testExceedMaxRate() public {
@@ -33,11 +27,12 @@ contract TestCompoundInterest is AstariaV1Test, AstariaV1LenderEnforcer {
         Starport.Loan memory loan = generateDefaultLoanTerms();
         loan.debt[0].amount = 2;
 
+        bytes memory caveatData = _generateSignedCaveatLender(loan, lender, 0).caveat[0].data;
         vm.expectRevert();
-        lenderEnforcer.validate(new AdditionalTransfer[](0), loan, "");
+        lenderEnforcer.validate(new AdditionalTransfer[](0), loan, caveatData);
 
         vm.expectRevert();
-        StarportLib.calculateCompoundInterest(MAX_DURATION, loan.debt[0].amount, MAX_RATE_PLUS_ONE);
+        AstariaV1Lib.calculateCompoundInterest(MAX_DURATION, loan.debt[0].amount, MAX_RATE_PLUS_ONE);
     }
 
     function testExceedMaxAmount() public {
@@ -47,11 +42,12 @@ contract TestCompoundInterest is AstariaV1Test, AstariaV1LenderEnforcer {
         Starport.Loan memory loan = generateDefaultLoanTerms();
         loan.debt[0].amount = MAX_AMOUNT_PLUS_ONE;
 
+        bytes memory caveatData = _generateSignedCaveatLender(loan, lender, 0).caveat[0].data;
         vm.expectRevert();
-        lenderEnforcer.validate(new AdditionalTransfer[](0), loan, "");
+        lenderEnforcer.validate(new AdditionalTransfer[](0), loan, caveatData);
 
         vm.expectRevert();
-        StarportLib.calculateCompoundInterest(MAX_DURATION, MAX_AMOUNT_PLUS_ONE, 0);
+        AstariaV1Lib.calculateCompoundInterest(MAX_DURATION, MAX_AMOUNT_PLUS_ONE, 0);
     }
 
     function testMaxRate() public {
@@ -60,10 +56,11 @@ contract TestCompoundInterest is AstariaV1Test, AstariaV1LenderEnforcer {
         Starport.Loan memory loan = generateDefaultLoanTerms();
         loan.debt[0].amount = 2;
 
-        vm.expectRevert(abi.encodeWithSelector(AstariaV1LenderEnforcer.InterestAccrualRoundingMinimum.selector));
-        lenderEnforcer.validate(new AdditionalTransfer[](0), loan, "");
+        bytes memory caveatData = _generateSignedCaveatLender(loan, lender, 0).caveat[0].data;
+        vm.expectRevert(abi.encodeWithSelector(AstariaV1Lib.InterestAccrualRoundingMinimum.selector));
+        lenderEnforcer.validate(new AdditionalTransfer[](0), loan, caveatData);
 
-        StarportLib.calculateCompoundInterest(MAX_DURATION, loan.debt[0].amount, MAX_RATE);
+        AstariaV1Lib.calculateCompoundInterest(MAX_DURATION, loan.debt[0].amount, MAX_RATE);
     }
 
     function testMaxAmount() public {
@@ -71,10 +68,16 @@ contract TestCompoundInterest is AstariaV1Test, AstariaV1LenderEnforcer {
         defaultPricingData = abi.encode(BasePricing.Details({carryRate: 0, rate: 0}));
         Starport.Loan memory loan = generateDefaultLoanTerms();
         loan.debt[0].amount = MAX_AMOUNT;
+        bytes memory caveatData = _generateSignedCaveatLender(loan, lender, 0).caveat[0].data;
 
-        vm.expectRevert(abi.encodeWithSelector(AstariaV1LenderEnforcer.InterestAccrualRoundingMinimum.selector));
-        lenderEnforcer.validate(new AdditionalTransfer[](0), loan, "");
+        AstariaV1Lib.calculateCompoundInterest(MAX_DURATION, loan.debt[0].amount, 0);
 
-        StarportLib.calculateCompoundInterest(MAX_DURATION, loan.debt[0].amount, 0);
+        vm.expectRevert(abi.encodeWithSelector(AstariaV1Lib.InterestAccrualRoundingMinimum.selector));
+        lenderEnforcer.validate(new AdditionalTransfer[](0), loan, caveatData);
     }
+
+    // function testPrecision() public {
+    //   uint256 result = AstariaV1Lib.calculateCompoundInterest(uint256(MAX_DURATION), MAX_AMOUNT, uint256(MAX_RATE)) + MAX_AMOUNT;
+    //   assertEq(result, MAX_UNSIGNED_INT, "Precision bounds not matching");
+    // }
 }
