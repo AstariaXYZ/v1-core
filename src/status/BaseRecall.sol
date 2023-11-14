@@ -21,20 +21,14 @@
 pragma solidity ^0.8.17;
 
 import {Starport} from "starport-core/Starport.sol";
-import {Status} from "starport-core/status/Status.sol";
 import {ERC20} from "solady/src/tokens/ERC20.sol";
 
 import {BasePricing} from "starport-core/pricing/BasePricing.sol";
 
-import {ReceivedItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
 import {ItemType} from "seaport-types/src/lib/ConsiderationEnums.sol";
-
-import {ConduitControllerInterface} from "seaport-sol/src/ConduitControllerInterface.sol";
 
 import {ConsiderationInterface} from "seaport-types/src/interfaces/ConsiderationInterface.sol";
 import {AdditionalTransfer} from "starport-core/lib/StarportLib.sol";
-
-import {ConduitInterface} from "seaport-types/src/interfaces/ConduitInterface.sol";
 
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 import {StarportLib} from "starport-core/lib/StarportLib.sol";
@@ -49,7 +43,6 @@ abstract contract BaseRecall {
     Starport public immutable SP;
 
     error InvalidWithdraw();
-    error InvalidConduit();
     error AdditionalTransferError();
     error InvalidStakeType();
     error LoanDoesNotExist();
@@ -85,10 +78,13 @@ abstract contract BaseRecall {
 
     function getRecallRate(Starport.Loan calldata loan) external view returns (uint256) {
         Details memory details = abi.decode(loan.terms.statusData, (Details));
+        BasePricing.Details memory pricingDetails = abi.decode(loan.terms.pricingData, (BasePricing.Details));
         uint256 loanId = loan.getId();
 
         // calculates the porportion of time elapsed, then multiplies times the max rate
-        return details.recallMax.mulWad((block.timestamp - recalls[loanId].start).divWad(details.recallWindow));
+        uint256 baseAdjustment = 10 ** pricingDetails.decimals;
+        uint256 ratio = (((block.timestamp - recalls[loanId].start) * baseAdjustment) / details.recallWindow);
+        return (details.recallMax * ratio) / baseAdjustment;
     }
 
     function recall(Starport.Loan calldata loan) external {
@@ -108,7 +104,7 @@ abstract contract BaseRecall {
         }
 
         AdditionalTransfer[] memory recallConsideration = _generateRecallConsideration(
-            msg.sender, loan, 0, details.recallStakeDuration, 1e18, msg.sender, payable(address(this))
+            msg.sender, loan, 0, details.recallStakeDuration, 0, msg.sender, payable(address(this))
         );
         if (recallConsideration.length > 0) {
             StarportLib.transferAdditionalTransfers(recallConsideration);
@@ -135,7 +131,7 @@ abstract contract BaseRecall {
 
         Details memory details = abi.decode(loan.terms.statusData, (Details));
         AdditionalTransfer[] memory recallConsideration = _generateRecallConsideration(
-            recall.recaller, loan, 0, details.recallStakeDuration, 1e18, address(this), receiver
+            recall.recaller, loan, 0, details.recallStakeDuration, 0, address(this), receiver
         );
 
         if (recallConsideration.length > 0) {
@@ -187,13 +183,16 @@ abstract contract BaseRecall {
 
             uint256 delta_t = end - start;
             BasePricing.Details memory details = abi.decode(loan.terms.pricingData, (BasePricing.Details));
+            uint256 baseAdjustment = (10 ** details.decimals);
+            proportion = baseAdjustment - proportion;
             for (uint256 i; i < additionalTransfers.length;) {
-                uint256 stake =
-                    BasePricing(loan.terms.pricing).calculateInterest(delta_t, loan.debt[i].amount, details.rate);
+                uint256 stake = BasePricing(loan.terms.pricing).calculateInterest(
+                    delta_t, loan.debt[i].amount, details.rate, details.decimals
+                );
                 additionalTransfers[i] = AdditionalTransfer({
                     itemType: loan.debt[i].itemType,
                     identifier: loan.debt[i].identifier,
-                    amount: stake.mulWad(proportion),
+                    amount: (stake * proportion) / baseAdjustment,
                     token: loan.debt[i].token,
                     from: from,
                     to: to

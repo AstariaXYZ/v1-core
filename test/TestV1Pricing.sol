@@ -7,7 +7,7 @@ import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 import {SpentItemLib} from "seaport-sol/src/lib/SpentItemLib.sol";
 import {Originator} from "starport-core/originators/Originator.sol";
 import {CaveatEnforcer} from "starport-core/enforcers/CaveatEnforcer.sol";
-import "forge-std/console2.sol";
+import {AstariaV1Lib} from "src/lib/AstariaV1Lib.sol";
 
 contract TestAstariaV1Pricing is AstariaV1Test, DeepEq {
     using Cast for *;
@@ -17,7 +17,7 @@ contract TestAstariaV1Pricing is AstariaV1Test, DeepEq {
 
     function setUp() public override {
         super.setUp();
-        defaultPricingData = abi.encode(BasePricing.Details({carryRate: 0, rate: uint256(1e16) / (365 * 1 days)}));
+        defaultPricingData = abi.encode(BasePricing.Details({carryRate: 0, rate: uint256(1e16), decimals: 18}));
         pricing = new AstariaV1Pricing(SP);
     }
 
@@ -30,7 +30,7 @@ contract TestAstariaV1Pricing is AstariaV1Test, DeepEq {
 
         BasePricing.Details memory baseDetails = abi.decode(loan.terms.pricingData, (BasePricing.Details));
         BaseRecall.Details memory statusDetails = abi.decode(loan.terms.statusData, (BaseRecall.Details));
-        bytes memory newPricingData = abi.encode(BasePricing.Details({carryRate: 0, rate: 0}));
+        bytes memory newPricingData = abi.encode(BasePricing.Details({carryRate: 0, rate: 0, decimals: 18}));
 
         vm.expectRevert(abi.encodeWithSelector(Pricing.InvalidRefinance.selector));
         Pricing(loan.terms.pricing).getRefinanceConsideration(loan, newPricingData, address(this));
@@ -52,7 +52,8 @@ contract TestAstariaV1Pricing is AstariaV1Test, DeepEq {
             loan.terms.status, abi.encodeWithSelector(AstariaV1Status.isRecalled.selector, loan), abi.encode(true)
         );
         uint256 recallRate = AstariaV1Status(loan.terms.status).getRecallRate(loan);
-        bytes memory newPricingData = abi.encode(BasePricing.Details({carryRate: 0, rate: recallRate * 2}));
+        bytes memory newPricingData =
+            abi.encode(BasePricing.Details({carryRate: 0, rate: recallRate * 2, decimals: 18}));
 
         vm.expectRevert(abi.encodeWithSelector(AstariaV1Pricing.InsufficientRefinance.selector));
         Pricing(loan.terms.pricing).getRefinanceConsideration(loan, newPricingData, address(this));
@@ -64,12 +65,14 @@ contract TestAstariaV1Pricing is AstariaV1Test, DeepEq {
         loan.originator = address(this);
         vm.warp(2);
         BasePricing.Details memory baseDetails = abi.decode(loan.terms.pricingData, (BasePricing.Details));
-        bytes memory newPricingData = abi.encode(BasePricing.Details({carryRate: 0, rate: 0}));
+        bytes memory newPricingData = abi.encode(BasePricing.Details({carryRate: 0, rate: 0, decimals: 18}));
         SpentItem[] memory expectedConsideration = new SpentItem[](1);
         expectedConsideration[0] = SpentItem({
             itemType: loan.debt[0].itemType,
             amount: loan.debt[0].amount
-                + StarportLib.calculateCompoundInterest(block.timestamp - loan.start, loan.debt[0].amount, baseDetails.rate),
+                + AstariaV1Lib.calculateCompoundInterest(
+                    block.timestamp - loan.start, loan.debt[0].amount, baseDetails.rate, 18
+                ),
             identifier: loan.debt[0].identifier,
             token: loan.debt[0].token
         });
@@ -93,7 +96,7 @@ contract TestAstariaV1Pricing is AstariaV1Test, DeepEq {
         loan.originator = address(this);
         vm.warp(2);
         BasePricing.Details memory baseDetails = abi.decode(loan.terms.pricingData, (BasePricing.Details));
-        bytes memory newPricingData = abi.encode(BasePricing.Details({carryRate: 0, rate: 0}));
+        bytes memory newPricingData = abi.encode(BasePricing.Details({carryRate: 0, rate: 0, decimals: 18}));
         BaseRecall.Details memory statusDetails = abi.decode(loan.terms.statusData, (BaseRecall.Details));
         uint256 proportion = 1e18 - (baseDetails.rate - 0).divWad(baseDetails.rate);
         vm.mockCall(
@@ -103,7 +106,9 @@ contract TestAstariaV1Pricing is AstariaV1Test, DeepEq {
         expectedConsideration[0] = SpentItem({
             itemType: loan.debt[0].itemType,
             amount: loan.debt[0].amount
-                + StarportLib.calculateCompoundInterest(block.timestamp - loan.start, loan.debt[0].amount, baseDetails.rate),
+                + AstariaV1Lib.calculateCompoundInterest(
+                    block.timestamp - loan.start, loan.debt[0].amount, baseDetails.rate, 18
+                ),
             identifier: loan.debt[0].identifier,
             token: loan.debt[0].token
         });
@@ -113,8 +118,8 @@ contract TestAstariaV1Pricing is AstariaV1Test, DeepEq {
             identifier: loan.debt[0].identifier,
             itemType: loan.debt[0].itemType,
             token: loan.debt[0].token,
-            amount: StarportLib.calculateCompoundInterest(
-                statusDetails.recallStakeDuration, loan.debt[0].amount, baseDetails.rate
+            amount: AstariaV1Lib.calculateCompoundInterest(
+                statusDetails.recallStakeDuration, loan.debt[0].amount, baseDetails.rate, 18
                 ).mulWad(proportion),
             to: loan.issuer,
             from: address(this)
@@ -144,14 +149,17 @@ contract TestAstariaV1Pricing is AstariaV1Test, DeepEq {
             loan.terms.status, abi.encodeWithSelector(AstariaV1Status.isRecalled.selector, loan), abi.encode(true)
         );
         skip(statusDetails.recallWindow - 10);
-        bytes memory newPricingData = abi.encode(BasePricing.Details({carryRate: 0, rate: baseDetails.rate}));
+        bytes memory newPricingData =
+            abi.encode(BasePricing.Details({carryRate: 0, rate: baseDetails.rate, decimals: 18}));
         uint256 proportion = 1e18 - (baseDetails.rate - baseDetails.rate).divWad(baseDetails.rate);
 
         SpentItem[] memory expectedConsideration = new SpentItem[](1);
         expectedConsideration[0] = SpentItem({
             itemType: loan.debt[0].itemType,
             amount: loan.debt[0].amount
-                + StarportLib.calculateCompoundInterest(block.timestamp - loan.start, loan.debt[0].amount, baseDetails.rate),
+                + AstariaV1Lib.calculateCompoundInterest(
+                    block.timestamp - loan.start, loan.debt[0].amount, baseDetails.rate, 18
+                ),
             identifier: loan.debt[0].identifier,
             token: loan.debt[0].token
         });
@@ -161,8 +169,8 @@ contract TestAstariaV1Pricing is AstariaV1Test, DeepEq {
             identifier: loan.debt[0].identifier,
             itemType: loan.debt[0].itemType,
             token: loan.debt[0].token,
-            amount: StarportLib.calculateCompoundInterest(
-                statusDetails.recallStakeDuration, loan.debt[0].amount, baseDetails.rate
+            amount: AstariaV1Lib.calculateCompoundInterest(
+                statusDetails.recallStakeDuration, loan.debt[0].amount, baseDetails.rate, 18
                 ).mulWad(proportion),
             to: loan.issuer,
             from: address(this)
@@ -200,13 +208,15 @@ contract TestAstariaV1Pricing is AstariaV1Test, DeepEq {
         );
         skip(statusDetails.recallWindow - 10);
         uint256 recallRate = AstariaV1Status(loan.terms.status).getRecallRate(loan);
-        bytes memory newPricingData = abi.encode(BasePricing.Details({carryRate: 0, rate: recallRate}));
+        bytes memory newPricingData = abi.encode(BasePricing.Details({carryRate: 0, rate: recallRate, decimals: 18}));
 
         SpentItem[] memory expectedConsideration = new SpentItem[](1);
         expectedConsideration[0] = SpentItem({
             itemType: loan.debt[0].itemType,
             amount: loan.debt[0].amount
-                + StarportLib.calculateCompoundInterest(block.timestamp - loan.start, loan.debt[0].amount, baseDetails.rate),
+                + AstariaV1Lib.calculateCompoundInterest(
+                    block.timestamp - loan.start, loan.debt[0].amount, baseDetails.rate, 18
+                ),
             identifier: loan.debt[0].identifier,
             token: loan.debt[0].token
         });
@@ -216,8 +226,8 @@ contract TestAstariaV1Pricing is AstariaV1Test, DeepEq {
             identifier: loan.debt[0].identifier,
             itemType: loan.debt[0].itemType,
             token: loan.debt[0].token,
-            amount: StarportLib.calculateCompoundInterest(
-                statusDetails.recallStakeDuration, loan.debt[0].amount, baseDetails.rate
+            amount: AstariaV1Lib.calculateCompoundInterest(
+                statusDetails.recallStakeDuration, loan.debt[0].amount, baseDetails.rate, 18
                 ).mulWad(proportion),
             to: recaller.addr,
             from: address(this)
@@ -248,7 +258,7 @@ contract TestAstariaV1Pricing is AstariaV1Test, DeepEq {
 
         BasePricing.Details memory baseDetails = abi.decode(loan.terms.pricingData, (BasePricing.Details));
         BaseRecall.Details memory statusDetails = abi.decode(loan.terms.statusData, (BaseRecall.Details));
-        bytes memory newPricingData = abi.encode(BasePricing.Details({carryRate: 0, rate: recallRate}));
+        bytes memory newPricingData = abi.encode(BasePricing.Details({carryRate: 0, rate: recallRate, decimals: 18}));
 
         //we're lower than the old rate so pay proportions
         uint256 proportion = 1e18 - (baseDetails.rate - recallRate).divWad(baseDetails.rate);
@@ -259,7 +269,9 @@ contract TestAstariaV1Pricing is AstariaV1Test, DeepEq {
         expectedConsideration[0] = SpentItem({
             itemType: loan.debt[0].itemType,
             amount: loan.debt[0].amount
-                + StarportLib.calculateCompoundInterest(block.timestamp - loan.start, loan.debt[0].amount, baseDetails.rate),
+                + AstariaV1Lib.calculateCompoundInterest(
+                    block.timestamp - loan.start, loan.debt[0].amount, baseDetails.rate, 18
+                ),
             identifier: loan.debt[0].identifier,
             token: loan.debt[0].token
         });
@@ -269,8 +281,8 @@ contract TestAstariaV1Pricing is AstariaV1Test, DeepEq {
             identifier: loan.debt[0].identifier,
             itemType: loan.debt[0].itemType,
             token: loan.debt[0].token,
-            amount: StarportLib.calculateCompoundInterest(
-                statusDetails.recallStakeDuration, loan.debt[0].amount, baseDetails.rate
+            amount: AstariaV1Lib.calculateCompoundInterest(
+                statusDetails.recallStakeDuration, loan.debt[0].amount, baseDetails.rate, 18
                 ).mulWad(proportion),
             to: loan.issuer,
             from: address(this)

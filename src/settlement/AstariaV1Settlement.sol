@@ -1,12 +1,12 @@
 pragma solidity ^0.8.17;
 
-import {Starport, SpentItem, ReceivedItem, Settlement} from "starport-core/settlement/Settlement.sol";
-import {BaseStatus} from "../status/BaseStatus.sol";
+import {Settlement} from "starport-core/settlement/Settlement.sol";
+import {Starport} from "starport-core/Starport.sol";
+import {ReceivedItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
 import {BaseRecall} from "src/status/BaseRecall.sol";
 import {DutchAuctionSettlement} from "starport-core/settlement/DutchAuctionSettlement.sol";
 import {StarportLib} from "starport-core/lib/StarportLib.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
-import {Pricing} from "starport-core/pricing/Pricing.sol";
 import {BasePricing} from "starport-core/pricing/BasePricing.sol";
 
 contract AstariaV1Settlement is DutchAuctionSettlement {
@@ -90,10 +90,11 @@ contract AstariaV1Settlement is DutchAuctionSettlement {
         consideration = new ReceivedItem[](3);
         uint256 i = 0;
         BasePricing.Details memory pricingDetails = abi.decode(loan.terms.pricingData, (BasePricing.Details));
-        uint256 interest =
-            BasePricing(loan.terms.pricing).getInterest(loan, pricingDetails.rate, loan.start, block.timestamp, 0);
+        uint256 interest = BasePricing(loan.terms.pricing).getInterest(
+            loan, pricingDetails.rate, loan.start, block.timestamp, 0, pricingDetails.decimals
+        );
 
-        uint256 carry = interest.mulWad(pricingDetails.carryRate);
+        uint256 carry = (interest * pricingDetails.carryRate) / 10 ** pricingDetails.decimals;
 
         if (carry > 0 && loan.debt[0].amount + interest - carry < settlementPrice) {
             uint256 excess = settlementPrice - loan.debt[0].amount + interest - carry;
@@ -112,12 +113,13 @@ contract AstariaV1Settlement is DutchAuctionSettlement {
 
         BaseRecall.Details memory hookDetails = abi.decode(loan.terms.statusData, (BaseRecall.Details));
 
-        uint256 recallerReward = (settlementPrice).mulWad(hookDetails.recallerRewardRatio);
+        uint256 recallerReward = (settlementPrice * hookDetails.recallerRewardRatio) / 10 ** pricingDetails.decimals;
+
         if (recallerReward > 0) {
             consideration[i] = ReceivedItem({
                 itemType: loan.debt[0].itemType,
                 identifier: loan.debt[0].identifier,
-                amount: settlementPrice.mulWad(hookDetails.recallerRewardRatio),
+                amount: recallerReward,
                 token: loan.debt[0].token,
                 recipient: payable(recaller)
             });

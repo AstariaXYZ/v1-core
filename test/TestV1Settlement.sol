@@ -7,7 +7,6 @@ import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 import {SpentItemLib} from "seaport-sol/src/lib/SpentItemLib.sol";
 import {Originator} from "starport-core/originators/Originator.sol";
 import {CaveatEnforcer} from "starport-core/enforcers/CaveatEnforcer.sol";
-import "forge-std/console2.sol";
 
 contract TestAstariaV1Settlement is AstariaV1Test, DeepEq {
     using Cast for *;
@@ -92,13 +91,20 @@ contract TestAstariaV1Settlement is AstariaV1Test, DeepEq {
         vm.mockCall(
             loan.terms.pricing,
             abi.encodeWithSelector(
-                BasePricing.getInterest.selector, loan, pricingDetails.rate, loan.start, block.timestamp, 0
+                BasePricing.getInterest.selector,
+                loan,
+                pricingDetails.rate,
+                loan.start,
+                block.timestamp,
+                0,
+                pricingDetails.decimals
             ),
             abi.encode(currentAuctionPrice - loan.debt[0].amount + 1)
         );
 
-        uint256 interest =
-            BasePricing(loan.terms.pricing).getInterest(loan, pricingDetails.rate, loan.start, block.timestamp, 0);
+        uint256 interest = BasePricing(loan.terms.pricing).getInterest(
+            loan, pricingDetails.rate, loan.start, block.timestamp, 0, pricingDetails.decimals
+        );
         uint256 carry = interest.mulWad(pricingDetails.carryRate);
         (ReceivedItem[] memory settlementConsideration, address restricted) =
             Settlement(loan.terms.settlement).getSettlementConsideration(loan);
