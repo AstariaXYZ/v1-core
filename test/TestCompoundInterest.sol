@@ -45,7 +45,7 @@ contract TestCompoundInterest is AstariaV1Test {
         Starport.Loan memory loan = generateDefaultLoanTerms();
         loan.debt[0].amount = 2;
 
-        bytes memory caveatData = _generateSignedCaveatLender(loan, lender, 0).caveat[0].data;
+        bytes memory caveatData = _generateSignedCaveatLender(loan, lender, 0, true).caveats[0].data;
         vm.expectRevert();
         lenderEnforcer.validate(new AdditionalTransfer[](0), loan, caveatData);
 
@@ -63,7 +63,7 @@ contract TestCompoundInterest is AstariaV1Test {
         Starport.Loan memory loan = generateDefaultLoanTerms();
         loan.debt[0].amount = MAX_AMOUNT_PLUS_ONE;
 
-        bytes memory caveatData = _generateSignedCaveatLender(loan, lender, 0).caveat[0].data;
+        bytes memory caveatData = _generateSignedCaveatLender(loan, lender, 0, true).caveats[0].data;
         vm.expectRevert();
         lenderEnforcer.validate(new AdditionalTransfer[](0), loan, caveatData);
 
@@ -106,7 +106,7 @@ contract TestCompoundInterest is AstariaV1Test {
         uint256 MAX_AMOUNT = type(uint256).max / uint256(exponent.expWad());
         Starport.Loan memory loan = generateDefaultLoanTerms();
         loan.debt[0].amount = MAX_AMOUNT;
-        bytes memory caveatData = _generateSignedCaveatLender(loan, lender, 0).caveat[0].data;
+        bytes memory caveatData = _generateSignedCaveatLender(loan, lender, 0, true).caveats[0].data;
 
         vm.expectRevert(abi.encodeWithSelector(AstariaV1Lib.InterestAccrualRoundingMinimum.selector));
         lenderEnforcer.validate(new AdditionalTransfer[](0), loan, "");
