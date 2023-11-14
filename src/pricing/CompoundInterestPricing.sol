@@ -1,7 +1,6 @@
 pragma solidity ^0.8.17;
 
 import {Starport} from "starport-core/Starport.sol";
-import {BasePricing} from "starport-core/pricing/BasePricing.sol";
 import {BaseRecallPricing} from "./BaseRecallPricing.sol";
 import {AstariaV1Lib} from "src/lib/AstariaV1Lib.sol";
 
