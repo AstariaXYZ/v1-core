@@ -39,15 +39,13 @@ contract TestAstariaV1Loan is AstariaV1Test {
             // refinance with before recall is initiated
             CaveatEnforcer.SignedCaveats memory lenderCaveat = CaveatEnforcer.SignedCaveats({
                 signature: "",
-                invalidate: true,
+                singleUse: true,
                 deadline: block.timestamp + 1 days,
                 salt: bytes32(uint256(1)),
                 caveats: new CaveatEnforcer.Caveat[](1)
             });
-            lenderCaveat.caveats[0] = CaveatEnforcer.Caveat({
-                enforcer: address(lenderEnforcer),
-                data: abi.encode(uint256(0))
-            });
+            lenderCaveat.caveats[0] =
+                CaveatEnforcer.Caveat({enforcer: address(lenderEnforcer), data: abi.encode(uint256(0))});
 
             refinanceLoan(
                 loan,
@@ -104,16 +102,14 @@ contract TestAstariaV1Loan is AstariaV1Test {
             // refinance with incorrect terms
             CaveatEnforcer.SignedCaveats memory lenderCaveat = CaveatEnforcer.SignedCaveats({
                 signature: "",
-            invalidate: true,
+                singleUse: true,
                 deadline: block.timestamp + 1 days,
                 salt: bytes32(uint256(1)),
                 caveats: new CaveatEnforcer.Caveat[](1)
             });
 
-            lenderCaveat.caveats[0] = CaveatEnforcer.Caveat({
-                enforcer: address(lenderEnforcer),
-                data: abi.encode(uint256(0))
-            });
+            lenderCaveat.caveats[0] =
+                CaveatEnforcer.Caveat({enforcer: address(lenderEnforcer), data: abi.encode(uint256(0))});
             refinanceLoan(
                 loan,
                 abi.encode(BasePricing.Details({rate: (uint256(1e16) * 100), carryRate: 0, decimals: 18})),
@@ -136,16 +132,16 @@ contract TestAstariaV1Loan is AstariaV1Test {
             bytes memory pricingData =
                 abi.encode(BasePricing.Details({rate: details.recallMax / 2, carryRate: 0, decimals: 18}));
             {
-                LenderEnforcer.Details memory refinanceDetails = getRefinanceDetails(loan, pricingData, refinancer.addr);
+                Starport.Loan memory refinancableLoan = getRefinanceDetails(loan, pricingData, refinancer.addr).loan;
                 CaveatEnforcer.SignedCaveats memory refinancerCaveat =
-                    getLenderSignedCaveat(refinanceDetails, refinancer, bytes32(uint256(1)), address(lenderEnforcer));
+                    _generateSignedCaveatLender(refinancableLoan, refinancer, bytes32(uint256(1)), true);
+
                 vm.startPrank(refinancer.addr);
-                erc20s[0].approve(address(SP), refinanceDetails.loan.debt[0].amount);
+                erc20s[0].approve(address(SP), refinancableLoan.debt[0].amount);
                 vm.stopPrank();
 
                 erc20s[0].approve(address(SP), stake);
                 refinanceLoan(loan, pricingData, address(this), refinancerCaveat, refinancer.addr);
-                console.log("here2", stake);
             }
 
             BasePricing.Details memory pricingDetails = abi.decode(loan.terms.pricingData, (BasePricing.Details));

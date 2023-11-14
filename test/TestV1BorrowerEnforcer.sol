@@ -23,7 +23,8 @@ contract TestV1BorrowerEnforcer is AstariaV1Test, AstariaV1BorrowerEnforcer {
             startTime: block.timestamp,
             endTime: block.timestamp + 10 minutes,
             startRate: endRate / 2,
-            startAmount: loan.debt[0].amount * 2,
+            minAmount: loan.debt[0].amount,
+            maxAmount: loan.debt[0].amount,
             details: BorrowerEnforcer.Details(loan)
         });
         vm.warp(block.timestamp + 10 minutes);
@@ -42,18 +43,13 @@ contract TestV1BorrowerEnforcer is AstariaV1Test, AstariaV1BorrowerEnforcer {
             startTime: block.timestamp,
             endTime: block.timestamp + 10 minutes,
             startRate: endRate / 2,
-            startAmount: loan.debt[0].amount * 2,
+            minAmount: loan.debt[0].amount,
+            maxAmount: loan.debt[0].amount,
             details: BorrowerEnforcer.Details(loanCopy(loan))
         });
-        loan.debt[0].amount = loan.debt[0].amount * 2;
         loan.terms.pricingData = abi.encode(BasePricing.Details({carryRate: 0, rate: endRate / 2, decimals: 18}));
 
         borrowerEnforcer.validate(new AdditionalTransfer[](0), loan, abi.encode(details));
-    }
-
-    function testLocateCurrentDivBy0() public {
-        assertEq(_locateCurrent(0, 1, 1, 1, 0), 0);
-        assertEq(_locateCurrent(0, 1, 0, 0, 0), 0);
     }
 
     function testRevertLocateCurrentRateAndAmount() public {
@@ -62,19 +58,20 @@ contract TestV1BorrowerEnforcer is AstariaV1Test, AstariaV1BorrowerEnforcer {
             startTime: block.timestamp + 10 minutes,
             endTime: block.timestamp,
             startRate: endRate / 2,
-            startAmount: loan.debt[0].amount * 2,
+            minAmount: loan.debt[0].amount,
+            maxAmount: loan.debt[0].amount,
             details: BorrowerEnforcer.Details(loan)
         });
 
         //revert if startTime > endTime
         vm.expectRevert(stdError.arithmeticError);
-        _locateCurrentRateAndAmount(details);
+        _locateCurrentRate(details);
 
         details.endTime = block.timestamp + 20 minutes;
 
         //revert if startTime > current time
         vm.expectRevert(stdError.arithmeticError);
-        _locateCurrentRateAndAmount(details);
+        _locateCurrentRate(details);
     }
 
     function testV1BorrowerEnforcerHalfway() public {
@@ -84,35 +81,37 @@ contract TestV1BorrowerEnforcer is AstariaV1Test, AstariaV1BorrowerEnforcer {
             startTime: block.timestamp,
             endTime: block.timestamp + 10 minutes,
             startRate: endRate / 2,
-            startAmount: loan.debt[0].amount * 2,
+            minAmount: loan.debt[0].amount,
+            maxAmount: loan.debt[0].amount,
             details: BorrowerEnforcer.Details(loanCopy(loan))
         });
-        loan.debt[0].amount = loan.debt[0].amount + loan.debt[0].amount / 2;
         loan.terms.pricingData = abi.encode(BasePricing.Details({carryRate: 0, rate: endRate * 3 / 4, decimals: 18}));
 
         vm.warp(block.timestamp + 5 minutes);
 
         borrowerEnforcer.validate(new AdditionalTransfer[](0), loan, abi.encode(details));
     }
-    //test amount less than current
 
-    function testV1BorrowerEnforcerAmountLTCurrent() public {
+    function testV1BorrowerEnforcerAmountOOB() public {
         Starport.Loan memory loan = generateDefaultLoanTerms();
 
         AstariaV1BorrowerEnforcer.V1BorrowerDetails memory details = AstariaV1BorrowerEnforcer.V1BorrowerDetails({
             startTime: block.timestamp,
             endTime: block.timestamp + 10 minutes,
             startRate: endRate / 2,
-            startAmount: loan.debt[0].amount * 2,
+            minAmount: loan.debt[0].amount,
+            maxAmount: loan.debt[0].amount * 2,
             details: BorrowerEnforcer.Details(loanCopy(loan))
         });
-        loan.debt[0].amount = loan.debt[0].amount + loan.debt[0].amount / 2 - 1;
-        loan.terms.pricingData = abi.encode(BasePricing.Details({carryRate: 0, rate: endRate * 3 / 4, decimals: 18}));
 
-        vm.warp(block.timestamp + 5 minutes);
+        loan.debt[0].amount = details.minAmount - 1;
 
-        vm.expectRevert(LoanAmountLessThanCurrentAmount.selector);
+        vm.expectRevert(LoanAmountOutOfBounds.selector);
+        borrowerEnforcer.validate(new AdditionalTransfer[](0), loan, abi.encode(details));
 
+        loan.debt[0].amount = details.maxAmount + 1;
+
+        vm.expectRevert(LoanAmountOutOfBounds.selector);
         borrowerEnforcer.validate(new AdditionalTransfer[](0), loan, abi.encode(details));
     }
 
@@ -124,10 +123,10 @@ contract TestV1BorrowerEnforcer is AstariaV1Test, AstariaV1BorrowerEnforcer {
             startTime: block.timestamp,
             endTime: block.timestamp + 10 minutes,
             startRate: endRate / 2,
-            startAmount: loan.debt[0].amount * 2,
+            minAmount: loan.debt[0].amount,
+            maxAmount: loan.debt[0].amount,
             details: BorrowerEnforcer.Details(loanCopy(loan))
         });
-        loan.debt[0].amount = loan.debt[0].amount + loan.debt[0].amount / 2;
         loan.terms.pricingData =
             abi.encode(BasePricing.Details({carryRate: 0, rate: endRate * 3 / 4 + 1, decimals: 18}));
 
@@ -137,6 +136,45 @@ contract TestV1BorrowerEnforcer is AstariaV1Test, AstariaV1BorrowerEnforcer {
         borrowerEnforcer.validate(new AdditionalTransfer[](0), loan, abi.encode(details));
     }
 
+    function testV1BorrowerEnforcerRateLTCurrent() public {
+        Starport.Loan memory loan = generateDefaultLoanTerms();
+
+        AstariaV1BorrowerEnforcer.V1BorrowerDetails memory details = AstariaV1BorrowerEnforcer.V1BorrowerDetails({
+            startTime: block.timestamp,
+            endTime: block.timestamp + 10 minutes,
+            startRate: endRate / 2,
+            minAmount: loan.debt[0].amount,
+            maxAmount: loan.debt[0].amount,
+            details: BorrowerEnforcer.Details(loanCopy(loan))
+        });
+        loan.terms.pricingData = abi.encode(BasePricing.Details({carryRate: 0, rate: details.startRate, decimals: 18}));
+
+        vm.warp(block.timestamp + 5 minutes);
+
+        borrowerEnforcer.validate(new AdditionalTransfer[](0), loan, abi.encode(details));
+    }
+
+    function testV1BorrowerEnforcerDebtBundlesNotSupported() external {
+        Starport.Loan memory loan = generateDefaultLoanTerms();
+        SpentItem[] memory debt = new SpentItem[](2);
+        debt[0] = loan.debt[0];
+        debt[1] = _getERC721SpentItem(TestERC721(loan.debt[0].token), loan.debt[0].identifier + 1);
+        loan.debt = debt;
+
+        AstariaV1BorrowerEnforcer.V1BorrowerDetails memory details = AstariaV1BorrowerEnforcer.V1BorrowerDetails({
+            startTime: block.timestamp,
+            endTime: block.timestamp + 10 minutes,
+            startRate: endRate / 2,
+            minAmount: loan.debt[0].amount,
+            maxAmount: loan.debt[0].amount,
+            details: BorrowerEnforcer.Details(loanCopy(loan))
+        });
+
+        vm.expectRevert(DebtBundlesNotSupported.selector);
+        borrowerEnforcer.validate(new AdditionalTransfer[](0), loan, abi.encode(BorrowerEnforcer.Details({loan: loan})));
+    }
+
+    //test div by 0
     function testFuzzRateMethods(BasePricing.Details memory pricing, uint256 newRate) public {
         bytes memory pricingData = abi.encode(pricing);
         assertEq(AstariaV1Lib.getBasePricingRate(pricingData), pricing.rate);
