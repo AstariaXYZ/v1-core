@@ -73,35 +73,15 @@ contract AstariaV1Test is StarportTest {
         return LenderEnforcer.Details({loan: loan});
     }
 
-    function newLoanOriginationSetup(
-        Starport.Loan memory loan,
-        Account memory borrowerSigner,
-        bytes32 borrowerSalt,
-        Account memory lenderSigner,
-        bytes32 lenderSalt
-    )
-        public
-        virtual
-        override
-        returns (
-            CaveatEnforcer.CaveatWithApproval memory borrowerCaveat,
-            CaveatEnforcer.CaveatWithApproval memory lenderCaveat
-        )
-    {
-        _setApprovalsForSpentItems(loan.borrower, loan.collateral);
-        _setApprovalsForSpentItems(loan.issuer, loan.debt);
-
-        borrowerCaveat = _generateSignedCaveatBorrower(loan, borrowerSigner, borrowerSalt);
-        lenderCaveat = _generateSignedCaveatLender(loan, lenderSigner, lenderSalt);
-    }
 
     // loan.borrower and signer.addr could be mismatched
+
     function _generateSignedCaveatBorrower(Starport.Loan memory loan, Account memory signer, bytes32 salt)
         public
         view
         virtual
         override
-        returns (CaveatEnforcer.CaveatWithApproval memory caveatWithApproval)
+        returns (CaveatEnforcer.SignedCaveats memory)
     {
         loan = loanCopy(loan);
         loan.issuer = address(0);
@@ -114,34 +94,28 @@ contract AstariaV1Test is StarportTest {
             maxAmount: loan.debt[0].amount,
             details: BorrowerEnforcer.Details(loan)
         });
-        CaveatEnforcer.Caveat memory caveat = CaveatEnforcer.Caveat({
-            enforcer: address(borrowerEnforcer),
-            deadline: block.timestamp,
-            data: abi.encode(v1BorrowerDetails)
-        });
-        return signCaveatForAccount(caveat, salt, signer);
+        CaveatEnforcer.Caveat memory caveat =
+            CaveatEnforcer.Caveat({enforcer: address(borrowerEnforcer), data: abi.encode(v1BorrowerDetails)});
+        return signCaveatForAccount(caveat, salt, signer, true);
     }
 
     // loan.issuer and signer.addr could be mismatched
-    function _generateSignedCaveatLender(Starport.Loan memory loan, Account memory signer, bytes32 salt)
-        public
-        view
-        virtual
-        override
-        returns (CaveatEnforcer.CaveatWithApproval memory caveatWithApproval)
-    {
+
+    function _generateSignedCaveatLender(
+        Starport.Loan memory loan,
+        Account memory signer,
+        bytes32 salt,
+        bool invalidate
+    ) public view virtual override returns (CaveatEnforcer.SignedCaveats memory) {
         loan = loanCopy(loan);
         loan.borrower = address(0);
 
         AstariaV1LenderEnforcer.V1LenderDetails memory v1LenderDetails =
             AstariaV1LenderEnforcer.V1LenderDetails({matchIdentifier: true, details: LenderEnforcer.Details(loan)});
 
-        CaveatEnforcer.Caveat memory caveat = CaveatEnforcer.Caveat({
-            enforcer: address(lenderEnforcer),
-            deadline: block.timestamp,
-            data: abi.encode(v1LenderDetails)
-        });
+        CaveatEnforcer.Caveat memory caveat =
+            CaveatEnforcer.Caveat({enforcer: address(lenderEnforcer), data: abi.encode(v1LenderDetails)});
 
-        return signCaveatForAccount(caveat, salt, signer);
+        return signCaveatForAccount(caveat, salt, signer, invalidate);
     }
 }

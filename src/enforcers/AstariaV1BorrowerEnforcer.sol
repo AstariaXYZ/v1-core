@@ -4,7 +4,6 @@ import {BorrowerEnforcer} from "starport-core/enforcers/BorrowerEnforcer.sol";
 import {AdditionalTransfer} from "starport-core/lib/StarportLib.sol";
 import {Starport} from "starport-core/Starport.sol";
 import {BasePricing} from "starport-core/pricing/BasePricing.sol";
-import {StarportLib} from "starport-core/lib/StarportLib.sol";
 import {AstariaV1Lib} from "src/lib/AstariaV1Lib.sol";
 
 contract AstariaV1BorrowerEnforcer is BorrowerEnforcer {
