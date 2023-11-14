@@ -1,7 +1,5 @@
 pragma solidity ^0.8.17;
 
-import "forge-std/console2.sol";
-
 import "starport-test/StarportTest.sol";
 
 import {BasePricing} from "starport-core/pricing/BasePricing.sol";
@@ -13,8 +11,8 @@ import {BaseRecall} from "src/status/BaseRecall.sol";
 
 import {AstariaV1Settlement} from "src/settlement/AstariaV1Settlement.sol";
 import {AstariaV1LenderEnforcer} from "src/enforcers/AstariaV1LenderEnforcer.sol";
+import {AstariaV1BorrowerEnforcer} from "src/enforcers/AstariaV1BorrowerEnforcer.sol";
 import {BorrowerEnforcer} from "starport-core/enforcers/BorrowerEnforcer.sol";
-// import "forge-std/console2.sol";
 import {CaveatEnforcer} from "starport-core/enforcers/CaveatEnforcer.sol";
 
 contract AstariaV1Test is StarportTest {
@@ -32,6 +30,7 @@ contract AstariaV1Test is StarportTest {
         status = new AstariaV1Status(SP);
 
         lenderEnforcer = new AstariaV1LenderEnforcer();
+        borrowerEnforcer = new AstariaV1BorrowerEnforcer();
 
         vm.startPrank(recaller.addr);
         erc20s[0].approve(address(status), 1e18);
@@ -39,7 +38,7 @@ contract AstariaV1Test is StarportTest {
 
         // // 1% interest rate per second
         defaultPricingData = abi.encode(
-            BasePricing.Details({carryRate: (uint256(1e16) * 10), rate: (uint256(1e16) * 150) / (365 * 1 days)})
+            BasePricing.Details({carryRate: (uint256(1e16) * 10), rate: (uint256(1e16) * 150), decimals: 18})
         );
 
         // defaultSettlementData = new bytes(0);
@@ -50,7 +49,7 @@ contract AstariaV1Test is StarportTest {
                 recallWindow: 3 days,
                 recallStakeDuration: 30 days,
                 // 1000% APR
-                recallMax: (uint256(1e16) * 1000) / (365 * 1 days),
+                recallMax: (uint256(1e16) * 1000),
                 // 10%, 0.1
                 recallerRewardRatio: uint256(1e16) * 10
             })

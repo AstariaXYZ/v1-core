@@ -1,36 +1,59 @@
+pragma solidity ^0.8.17;
+
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
+import {Starport} from "starport-core/Starport.sol";
+import {BasePricing} from "starport-core/pricing/BasePricing.sol";
+import {BaseRecall} from "src/status/BaseRecall.sol";
+import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
+import {StarportLib} from "starport-core/lib/StarportLib.sol";
 
 library AstariaV1Lib {
-    int256 constant NATURAL_NUMBER_SIGNED_WAD = int256(2718281828459045235);
-
     using FixedPointMathLib for uint256;
     using FixedPointMathLib for int256;
 
+    uint256 constant WAD = 18;
     uint256 constant MAX_DURATION = uint256(3 * 365 * 1 days); // 3 years
 
-    error LoanAmountExceedsMaxAmount();
-    error LoanRateExceedsMaxRate();
     error InterestAccrualRoundingMinimum();
+    error UnsupportedDecimalValue();
+    error RateExceedMaxRecallRate();
 
-    function calculateCompoundInterest(
-        uint256 delta_t,
-        uint256 amount,
-        uint256 rate // expressed as SPR seconds per rate
-    ) public pure returns (uint256) {
-        return amount.mulWad(uint256(NATURAL_NUMBER_SIGNED_WAD.powWad(int256(rate * delta_t)))) - amount;
+    function validateCompoundInterest(uint256 amount, uint256 rate, uint256 recallMax, uint256 decimals)
+        internal
+        pure
+    {
+        // rate should never exceed the recallMax rate
+        if (rate > recallMax) {
+            revert RateExceedMaxRecallRate();
+        }
+
+        // only decimal values of 1-18 are supported
+        if (decimals > 18 || decimals == 0) {
+            revert UnsupportedDecimalValue();
+        }
+
+        // check to validate that the MAX_DURATION does not overflow interest calculation
+        // creates a maximum safe duration for a loan, loans can go beyond MAX_DURATION with undefined behavior
+        calculateCompoundInterest(MAX_DURATION, amount, recallMax, decimals);
+
+        // calculate interest for 1 second of time
+        // loan must produce 1 wei of interest per 1 second of time
+        uint256 interest = calculateCompoundInterest(1, amount, rate, decimals);
+        if (interest == 0) {
+            // interest does not accrue at least 1 wei per second
+            revert InterestAccrualRoundingMinimum();
+        }
     }
 
-    function validateCompoundInterest(
-        uint256 amount,
-        uint256 rate // expressed as SPR seconds per rate
-    ) internal pure {
-        // check to validate that the MAX_DURATION does not overflow interest calculation
-        // creates a maximum safe duration for a loan
-        calculateCompoundInterest(MAX_DURATION, amount, rate);
+    function getBaseRecallRecallMax(bytes memory statusData) internal pure returns (uint256 recallMax) {
+        assembly {
+            recallMax := mload(add(0x80, statusData))
+        }
+    }
 
-        if (calculateCompoundInterest(1 seconds, amount, rate) == 0) {
-            // Interest does not accrue at least 1 wei per second
-            revert InterestAccrualRoundingMinimum();
+    function getBasePricingDecimals(bytes memory pricingData) internal pure returns (uint256 decimals) {
+        assembly {
+            decimals := mload(add(0x60, pricingData))
         }
     }
 
@@ -44,5 +67,21 @@ library AstariaV1Lib {
         assembly {
             mstore(add(0x20, pricingData), newRate)
         }
+    }
+
+    function calculateCompoundInterest(uint256 delta_t, uint256 amount, uint256 rate, uint256 decimals)
+        public
+        pure
+        returns (uint256)
+    {
+        if (decimals < WAD) {
+            uint256 baseAdjustment = 10 ** (WAD - decimals);
+            int256 exponent = int256((rate * baseAdjustment) / 365 days) * int256(delta_t);
+            amount *= baseAdjustment;
+            uint256 result = amount.mulWad(uint256(exponent.expWad())) - amount;
+            return result /= baseAdjustment;
+        }
+        int256 exponent = int256(rate / 365 days) * int256(delta_t);
+        return amount.mulWad(uint256(exponent.expWad())) - amount;
     }
 }

@@ -7,7 +7,6 @@ import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 import {SpentItemLib} from "seaport-sol/src/lib/SpentItemLib.sol";
 import {Originator} from "starport-core/originators/Originator.sol";
 import {CaveatEnforcer} from "starport-core/enforcers/CaveatEnforcer.sol";
-import "forge-std/console2.sol";
 
 contract TestAstariaV1Status is AstariaV1Test, DeepEq {
     using Cast for *;
@@ -217,9 +216,10 @@ contract TestAstariaV1Status is AstariaV1Test, DeepEq {
             pricingDetails.rate,
             0,
             recallDetails.recallStakeDuration,
-            0 //index of the loan
+            0, //index of the loan
+            pricingDetails.decimals
         );
-        uint256 proportion = 1e18;
+        uint256 proportion = 0;
         AdditionalTransfer[] memory recallConsideration = AstariaV1Status(loan.terms.status).generateRecallConsideration(
             loan, proportion, payable(address(this)), payable(loan.issuer)
         );

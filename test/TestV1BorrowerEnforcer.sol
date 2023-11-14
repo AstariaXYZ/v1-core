@@ -13,7 +13,7 @@ contract TestV1BorrowerEnforcer is AstariaV1Test, AstariaV1BorrowerEnforcer {
     function setUp() public override {
         super.setUp();
         borrowerEnforcer = new AstariaV1BorrowerEnforcer();
-        defaultPricingData = abi.encode(BasePricing.Details({carryRate: 0, rate: endRate}));
+        defaultPricingData = abi.encode(BasePricing.Details({carryRate: 0, rate: endRate, decimals: 18}));
     }
 
     function testV1BorrowerEnforcerEnd() public {
@@ -46,7 +46,7 @@ contract TestV1BorrowerEnforcer is AstariaV1Test, AstariaV1BorrowerEnforcer {
             details: BorrowerEnforcer.Details(loanCopy(loan))
         });
         loan.debt[0].amount = loan.debt[0].amount * 2;
-        loan.terms.pricingData = abi.encode(BasePricing.Details({carryRate: 0, rate: endRate / 2}));
+        loan.terms.pricingData = abi.encode(BasePricing.Details({carryRate: 0, rate: endRate / 2, decimals: 18}));
 
         borrowerEnforcer.validate(new AdditionalTransfer[](0), loan, abi.encode(details));
     }
@@ -88,7 +88,7 @@ contract TestV1BorrowerEnforcer is AstariaV1Test, AstariaV1BorrowerEnforcer {
             details: BorrowerEnforcer.Details(loanCopy(loan))
         });
         loan.debt[0].amount = loan.debt[0].amount + loan.debt[0].amount / 2;
-        loan.terms.pricingData = abi.encode(BasePricing.Details({carryRate: 0, rate: endRate * 3 / 4}));
+        loan.terms.pricingData = abi.encode(BasePricing.Details({carryRate: 0, rate: endRate * 3 / 4, decimals: 18}));
 
         vm.warp(block.timestamp + 5 minutes);
 
@@ -107,7 +107,7 @@ contract TestV1BorrowerEnforcer is AstariaV1Test, AstariaV1BorrowerEnforcer {
             details: BorrowerEnforcer.Details(loanCopy(loan))
         });
         loan.debt[0].amount = loan.debt[0].amount + loan.debt[0].amount / 2 - 1;
-        loan.terms.pricingData = abi.encode(BasePricing.Details({carryRate: 0, rate: endRate * 3 / 4}));
+        loan.terms.pricingData = abi.encode(BasePricing.Details({carryRate: 0, rate: endRate * 3 / 4, decimals: 18}));
 
         vm.warp(block.timestamp + 5 minutes);
 
@@ -128,7 +128,8 @@ contract TestV1BorrowerEnforcer is AstariaV1Test, AstariaV1BorrowerEnforcer {
             details: BorrowerEnforcer.Details(loanCopy(loan))
         });
         loan.debt[0].amount = loan.debt[0].amount + loan.debt[0].amount / 2;
-        loan.terms.pricingData = abi.encode(BasePricing.Details({carryRate: 0, rate: endRate * 3 / 4 + 1}));
+        loan.terms.pricingData =
+            abi.encode(BasePricing.Details({carryRate: 0, rate: endRate * 3 / 4 + 1, decimals: 18}));
 
         vm.expectRevert(LoanRateExceedsCurrentRate.selector);
         vm.warp(block.timestamp + 5 minutes);

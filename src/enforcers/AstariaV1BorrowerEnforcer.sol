@@ -4,7 +4,6 @@ import {BorrowerEnforcer} from "starport-core/enforcers/BorrowerEnforcer.sol";
 import {AdditionalTransfer} from "starport-core/lib/StarportLib.sol";
 import {Starport} from "starport-core/Starport.sol";
 import {BasePricing} from "starport-core/pricing/BasePricing.sol";
-import {StarportLib} from "starport-core/lib/StarportLib.sol";
 import {AstariaV1Lib} from "src/lib/AstariaV1Lib.sol";
 
 contract AstariaV1BorrowerEnforcer is BorrowerEnforcer {
@@ -30,9 +29,10 @@ contract AstariaV1BorrowerEnforcer is BorrowerEnforcer {
         }
 
         uint256 loanRate = abi.decode(loan.terms.pricingData, (BasePricing.Details)).rate;
-
         uint256 loanAmount = loan.debt[0].amount;
-        AstariaV1Lib.validateCompoundInterest(loanAmount, loanRate);
+        uint256 recallMax = AstariaV1Lib.getBaseRecallRecallMax(loan.terms.statusData);
+        uint256 decimals = AstariaV1Lib.getBasePricingDecimals(loan.terms.pricingData);
+        AstariaV1Lib.validateCompoundInterest(loanAmount, loanRate, recallMax, decimals);
 
         V1BorrowerDetails memory v1Details = abi.decode(caveatData, (V1BorrowerDetails));
 

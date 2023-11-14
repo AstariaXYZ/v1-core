@@ -4,14 +4,13 @@ import {Starport} from "starport-core/Starport.sol";
 import {CompoundInterestPricing} from "./CompoundInterestPricing.sol";
 import {Pricing} from "starport-core/pricing/Pricing.sol";
 import {BasePricing} from "starport-core/pricing/BasePricing.sol";
-import {ReceivedItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
 import {SpentItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
 import {AstariaV1Status} from "src/status/AstariaV1Status.sol";
-
-import {BaseRecall} from "src/status/BaseRecall.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 import {StarportLib} from "starport-core/lib/StarportLib.sol";
 import {AdditionalTransfer} from "starport-core/lib/StarportLib.sol";
+
+import {AstariaV1Lib} from "src/lib/AstariaV1Lib.sol";
 
 contract AstariaV1Pricing is CompoundInterestPricing {
     using FixedPointMathLib for uint256;
@@ -21,7 +20,7 @@ contract AstariaV1Pricing is CompoundInterestPricing {
 
     error InsufficientRefinance();
 
-    function getRefinanceConsideration(Starport.Loan memory loan, bytes calldata newPricingData, address fulfiller)
+    function getRefinanceConsideration(Starport.Loan calldata loan, bytes calldata newPricingData, address fulfiller)
         external
         view
         virtual
@@ -55,17 +54,27 @@ contract AstariaV1Pricing is CompoundInterestPricing {
             // scenario where the recaller is not penalized
             // recaller stake is refunded
             if (newDetails.rate > oldDetails.rate) {
-                proportion = 1e18;
+                proportion = 0;
                 (receiver,) = status.recalls(loanId);
             } else {
                 // scenario where the recaller is penalized
                 // essentially the old lender and the new lender split the stake of the recaller
                 // split is proportional to the difference in rate
-                proportion = 1e18 - (oldDetails.rate - newDetails.rate).divWad(oldDetails.rate);
+                proportion = (oldDetails.rate - newDetails.rate).divWad(oldDetails.rate);
             }
             recallConsideration = status.generateRecallConsideration(loan, proportion, fulfiller, receiver);
         }
 
         (repayConsideration, carryConsideration) = getPaymentConsideration(loan);
+    }
+
+    function validate(Starport.Loan calldata loan) external pure virtual override returns (bytes4) {
+        uint256 loanRate = abi.decode(loan.terms.pricingData, (BasePricing.Details)).rate;
+        uint256 loanAmount = loan.debt[0].amount;
+        uint256 recallMax = AstariaV1Lib.getBaseRecallRecallMax(loan.terms.statusData);
+        uint256 decimals = AstariaV1Lib.getBasePricingDecimals(loan.terms.pricingData);
+
+        AstariaV1Lib.validateCompoundInterest(loanAmount, loanRate, recallMax, decimals);
+        return Pricing.validate.selector;
     }
 }
