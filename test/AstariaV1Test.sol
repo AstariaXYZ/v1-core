@@ -9,6 +9,7 @@ import {AstariaV1Status} from "src/status/AstariaV1Status.sol";
 
 import {BaseRecall} from "src/status/BaseRecall.sol";
 
+import {AstariaV1Lib} from "src/lib/AstariaV1Lib.sol";
 import {AstariaV1Settlement} from "src/settlement/AstariaV1Settlement.sol";
 import {AstariaV1LenderEnforcer} from "src/enforcers/AstariaV1LenderEnforcer.sol";
 import {AstariaV1BorrowerEnforcer} from "src/enforcers/AstariaV1BorrowerEnforcer.sol";
@@ -70,5 +71,77 @@ contract AstariaV1Test is StarportTest {
         loan.originator = address(0);
 
         return LenderEnforcer.Details({loan: loan});
+    }
+
+    function newLoanOriginationSetup(
+        Starport.Loan memory loan,
+        Account memory borrowerSigner,
+        bytes32 borrowerSalt,
+        Account memory lenderSigner,
+        bytes32 lenderSalt
+    )
+        public
+        virtual
+        override
+        returns (
+            CaveatEnforcer.CaveatWithApproval memory borrowerCaveat,
+            CaveatEnforcer.CaveatWithApproval memory lenderCaveat
+        )
+    {
+        _setApprovalsForSpentItems(loan.borrower, loan.collateral);
+        _setApprovalsForSpentItems(loan.issuer, loan.debt);
+
+        borrowerCaveat = _generateSignedCaveatBorrower(loan, borrowerSigner, borrowerSalt);
+        lenderCaveat = _generateSignedCaveatLender(loan, lenderSigner, lenderSalt);
+    }
+
+    // loan.borrower and signer.addr could be mismatched
+    function _generateSignedCaveatBorrower(Starport.Loan memory loan, Account memory signer, bytes32 salt)
+        public
+        view
+        virtual
+        override
+        returns (CaveatEnforcer.CaveatWithApproval memory caveatWithApproval)
+    {
+        loan = loanCopy(loan);
+        loan.issuer = address(0);
+        AstariaV1BorrowerEnforcer.V1BorrowerDetails memory v1BorrowerDetails = AstariaV1BorrowerEnforcer
+            .V1BorrowerDetails({
+            startTime: block.timestamp,
+            endTime: block.timestamp,
+            startRate: AstariaV1Lib.getBasePricingRate(loan.terms.pricingData),
+            minAmount: loan.debt[0].amount,
+            maxAmount: loan.debt[0].amount,
+            details: BorrowerEnforcer.Details(loan)
+        });
+        CaveatEnforcer.Caveat memory caveat = CaveatEnforcer.Caveat({
+            enforcer: address(borrowerEnforcer),
+            deadline: block.timestamp,
+            data: abi.encode(v1BorrowerDetails)
+        });
+        return signCaveatForAccount(caveat, salt, signer);
+    }
+
+    // loan.issuer and signer.addr could be mismatched
+    function _generateSignedCaveatLender(Starport.Loan memory loan, Account memory signer, bytes32 salt)
+        public
+        view
+        virtual
+        override
+        returns (CaveatEnforcer.CaveatWithApproval memory caveatWithApproval)
+    {
+        loan = loanCopy(loan);
+        loan.borrower = address(0);
+
+        AstariaV1LenderEnforcer.V1LenderDetails memory v1LenderDetails =
+            AstariaV1LenderEnforcer.V1LenderDetails({matchIdentifier: true, details: LenderEnforcer.Details(loan)});
+
+        CaveatEnforcer.Caveat memory caveat = CaveatEnforcer.Caveat({
+            enforcer: address(lenderEnforcer),
+            deadline: block.timestamp,
+            data: abi.encode(v1LenderDetails)
+        });
+
+        return signCaveatForAccount(caveat, salt, signer);
     }
 }

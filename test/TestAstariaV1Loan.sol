@@ -138,17 +138,17 @@ contract TestAstariaV1Loan is AstariaV1Test {
             bytes memory pricingData =
                 abi.encode(BasePricing.Details({rate: details.recallMax / 2, carryRate: 0, decimals: 18}));
             {
-                LenderEnforcer.Details memory refinanceDetails = getRefinanceDetails(loan, pricingData, refinancer.addr);
+                Starport.Loan memory refinancableLoan = getRefinanceDetails(loan, pricingData, refinancer.addr).loan;
                 console.log("here");
                 CaveatEnforcer.CaveatWithApproval memory refinancerCaveat =
-                    getLenderSignedCaveat(refinanceDetails, refinancer, bytes32(uint256(1)), address(lenderEnforcer));
+                    _generateSignedCaveatLender(refinancableLoan, refinancer, bytes32(uint256(1)));
                 // vm.startPrank(refinancer.addr);
                 console.logBytes32(
                     SP.hashCaveatWithSaltAndNonce(refinancer.addr, bytes32(uint256(1)), refinancerCaveat.caveat)
                 );
 
                 vm.startPrank(refinancer.addr);
-                erc20s[0].approve(address(SP), refinanceDetails.loan.debt[0].amount);
+                erc20s[0].approve(address(SP), refinancableLoan.debt[0].amount);
                 vm.stopPrank();
 
                 erc20s[0].approve(address(SP), stake);
