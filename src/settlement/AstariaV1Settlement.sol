@@ -1,6 +1,8 @@
 pragma solidity ^0.8.17;
 
-import {Starport, SpentItem, ReceivedItem, Settlement} from "starport-core/settlement/Settlement.sol";
+import {Settlement} from "starport-core/settlement/Settlement.sol";
+import {Starport} from "starport-core/Starport.sol";
+import {ReceivedItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
 import {BaseStatus} from "../status/BaseStatus.sol";
 import {BaseRecall} from "src/status/BaseRecall.sol";
 import {DutchAuctionSettlement} from "starport-core/settlement/DutchAuctionSettlement.sol";

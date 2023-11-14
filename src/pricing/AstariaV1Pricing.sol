@@ -23,7 +23,7 @@ contract AstariaV1Pricing is CompoundInterestPricing {
 
     error InsufficientRefinance();
 
-    function getRefinanceConsideration(Starport.Loan memory loan, bytes calldata newPricingData, address fulfiller)
+    function getRefinanceConsideration(Starport.Loan calldata loan, bytes calldata newPricingData, address fulfiller)
         external
         view
         virtual
