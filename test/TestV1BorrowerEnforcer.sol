@@ -103,6 +103,7 @@ contract TestV1BorrowerEnforcer is AstariaV1Test, AstariaV1BorrowerEnforcer {
             maxAmount: loan.debt[0].amount * 2,
             details: BorrowerEnforcer.Details(loanCopy(loan))
         });
+
         loan.debt[0].amount = details.minAmount - 1;
 
         vm.expectRevert(LoanAmountOutOfBounds.selector);
