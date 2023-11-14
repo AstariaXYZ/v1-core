@@ -1,7 +1,7 @@
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 
 library AstariaV1Lib {
-    int256 constant NATURAL_NUMBER_SIGNED_WAD = int256(2718281828459045235);
+    int256 constant NATURAL_NUMBER_SIGNED_WAD = int256(2_718_281_828_459_045_235);
 
     using FixedPointMathLib for uint256;
     using FixedPointMathLib for int256;

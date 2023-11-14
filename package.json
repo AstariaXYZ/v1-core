@@ -1,0 +1,20 @@
+{
+  "name": "@astariaxyz/v1-core",
+  "private": true,
+  "version": "1.0.0",
+  "homepage": "https://astaria.xyz",
+  "repository": "https://github.com/AstariaXYZ/v1-core.git",
+  "license": "BUSL-1.1",
+  "publishConfig": {
+    "access": "restricted"
+  },
+  "engines": {
+    "node": ">=18.12.2"
+  },
+  "devDependencies": {
+    "husky": "^8.0.0"
+  },
+  "scripts": {
+    "prepare": "husky install"
+  }
+}
