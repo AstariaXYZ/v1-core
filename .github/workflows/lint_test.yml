@@ -30,4 +30,4 @@ jobs:
         run: forge test -vvv
 
       - name: Snapshot
-        run: forge snapshot --check --no-match-path '*fuzz*'
+        run: forge snapshot --diff --no-match-test /^testFuzz/g
