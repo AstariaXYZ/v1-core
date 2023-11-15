@@ -1,0 +1,7 @@
+#!/usr/bin/env sh
+. "$(dirname -- "$0")/_/husky.sh"
+
+forge fmt --check
+forge snapshot --diff --no-match-test /^testFuzz/g
+
+git add .gas-snapshot

@@ -73,7 +73,6 @@ contract AstariaV1Test is StarportTest {
         return LenderEnforcer.Details({loan: loan});
     }
 
-
     // loan.borrower and signer.addr could be mismatched
 
     function _generateSignedCaveatBorrower(Starport.Loan memory loan, Account memory signer, bytes32 salt)

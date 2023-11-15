@@ -1,0 +1,33 @@
+name: Lint, Test
+
+on: push
+
+env:
+  FOUNDRY_PROFILE: ci
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          submodules: recursive
+          token: ${{ secrets.JG_PAT_EXP_11_14_24 }}
+
+      - uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      - run: yarn
+
+      - uses: foundry-rs/foundry-toolchain@v1
+
+      - name: Lint
+        run: forge fmt --check
+
+      - name: Test
+        run: forge test -vvv
+
+      - name: Snapshot
+        run: forge snapshot --diff --no-match-test /^testFuzz/g

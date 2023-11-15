@@ -135,7 +135,7 @@ contract TestAstariaV1Pricing is AstariaV1Test, DeepEq {
         _deepEq(expectedAdditionalTransfers, additionalTransfers);
     }
 
-    function testGetRefiannceConsiderationValidEqualRate() public {
+    function testGetRefinanceConsiderationValidEqualRate() public {
         Starport.Loan memory loan = generateDefaultLoanTerms();
 
         loan.start = uint256(1);
@@ -191,7 +191,7 @@ contract TestAstariaV1Pricing is AstariaV1Test, DeepEq {
         _deepEq(expectedAdditionalTransfers, additionalTransfers);
     }
 
-    function testGetRefiannceConsiderationValidHigherRate() public {
+    function testGetRefinanceConsiderationValidHigherRate() public {
         Starport.Loan memory loan = generateDefaultLoanTerms();
 
         loan.start = uint256(1);
@@ -248,7 +248,7 @@ contract TestAstariaV1Pricing is AstariaV1Test, DeepEq {
         _deepEq(expectedAdditionalTransfers, additionalTransfers);
     }
 
-    function testGetRefiannceConsiderationValidLowerRate() public {
+    function testGetRefinanceConsiderationValidLowerRate() public {
         Starport.Loan memory loan = generateDefaultLoanTerms();
 
         loan.start = uint256(1);
