@@ -89,7 +89,6 @@ contract TestV1LenderEnforcer is AstariaV1Test, AstariaV1LenderEnforcer {
         lenderEnforcer.validate(additionalTransfers, loan, abi.encode(details));
     }
 
-
     function testV1LenderEnforcerDebtBundlesNotSupported() external {
         Starport.Loan memory loan = generateDefaultLoanTerms();
         SpentItem[] memory debt = new SpentItem[](2);
