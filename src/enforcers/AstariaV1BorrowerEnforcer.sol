@@ -4,19 +4,19 @@ import {BorrowerEnforcer} from "starport-core/enforcers/BorrowerEnforcer.sol";
 import {AdditionalTransfer} from "starport-core/lib/StarportLib.sol";
 import {Starport} from "starport-core/Starport.sol";
 import {BasePricing} from "starport-core/pricing/BasePricing.sol";
-import {StarportLib} from "starport-core/lib/StarportLib.sol";
 import {AstariaV1Lib} from "src/lib/AstariaV1Lib.sol";
 
 contract AstariaV1BorrowerEnforcer is BorrowerEnforcer {
-    error LoanAmountLessThanCurrentAmount();
     error LoanRateExceedsCurrentRate();
+    error LoanAmountOutOfBounds();
     error DebtBundlesNotSupported();
 
     struct V1BorrowerDetails {
         uint256 startTime;
         uint256 endTime;
         uint256 startRate;
-        uint256 startAmount;
+        uint256 maxAmount;
+        uint256 minAmount;
         BorrowerEnforcer.Details details;
     }
 
@@ -29,45 +29,52 @@ contract AstariaV1BorrowerEnforcer is BorrowerEnforcer {
             revert DebtBundlesNotSupported();
         }
 
-        uint256 loanRate = abi.decode(loan.terms.pricingData, (BasePricing.Details)).rate;
-
+        Starport.Terms calldata loanTerms = loan.terms;
+        uint256 loanRate = abi.decode(loanTerms.pricingData, (BasePricing.Details)).rate;
         uint256 loanAmount = loan.debt[0].amount;
-        AstariaV1Lib.validateCompoundInterest(loanAmount, loanRate);
+
+        //Validate the loan amount,rate, and recallMax
+        AstariaV1Lib.validateCompoundInterest(
+            loanAmount,
+            loanRate,
+            AstariaV1Lib.getBaseRecallRecallMax(loanTerms.statusData), //recallMax
+            AstariaV1Lib.getBasePricingDecimals(loanTerms.pricingData) //decimals
+        );
 
         V1BorrowerDetails memory v1Details = abi.decode(caveatData, (V1BorrowerDetails));
 
-        (uint256 currentRate, uint256 currentAmount) = _locateCurrentRateAndAmount(v1Details);
-
-        if (loanAmount < currentAmount) {
+        if (loanAmount < v1Details.minAmount || loanAmount > v1Details.maxAmount) {
             //Debt amount is less than the current caveat amount
-            revert LoanAmountLessThanCurrentAmount();
+            revert LoanAmountOutOfBounds();
         }
 
+        uint256 currentRate = _locateCurrentRate(v1Details);
         if (loanRate > currentRate) {
             //Loan rate is greater than the current caveat rate
             revert LoanRateExceedsCurrentRate();
         }
 
-        BorrowerEnforcer.Details memory details = v1Details.details;
-        AstariaV1Lib.setBasePricingRate(details.loan.terms.pricingData, loanRate);
-        details.loan.debt[0].amount = loanAmount;
-        _validate(additionalTransfers, loan, details);
+        //Update the caveat loan rate and amount
+        Starport.Loan memory caveatLoan = v1Details.details.loan;
+        AstariaV1Lib.setBasePricingRate(caveatLoan.terms.pricingData, loanRate);
+        caveatLoan.debt[0].amount = loanAmount;
+
+        //Hash match w/ expected issuer
+        _validate(additionalTransfers, loan, v1Details.details);
     }
 
-    function _locateCurrentRateAndAmount(V1BorrowerDetails memory v1Details)
-        internal
-        view
-        returns (uint256 currentRate, uint256 currentAmount)
-    {
-        //if past endTime, use the final rate and amount
-        if (block.timestamp > v1Details.endTime || v1Details.startTime == v1Details.endTime) {
-            return (
-                AstariaV1Lib.getBasePricingRate(v1Details.details.loan.terms.pricingData),
-                v1Details.details.loan.debt[0].amount
-            );
+    function _locateCurrentRate(V1BorrowerDetails memory v1Details) internal view returns (uint256 currentRate) {
+        uint256 endRate = AstariaV1Lib.getBasePricingRate(v1Details.details.loan.terms.pricingData);
+
+        //if endRate == startRate, or startTime == endTime, or block.timestamp > endTime
+        if (
+            endRate == v1Details.startRate || v1Details.startTime == v1Details.endTime
+                || block.timestamp > v1Details.endTime
+        ) {
+            return endRate;
         }
 
-        //will revert if startTime > endTime
+        //Will revert if startTime > endTime
         uint256 duration = v1Details.endTime - v1Details.startTime;
         uint256 elapsed;
         uint256 remaining;
@@ -78,38 +85,11 @@ contract AstariaV1BorrowerEnforcer is BorrowerEnforcer {
             remaining = duration - elapsed;
         }
 
-        //calculate rate with a linear growth
-        //weight startRate by the remaining time, and maxRate by the elapsed time
-        currentRate = _locateCurrent(
-            v1Details.startRate,
-            AstariaV1Lib.getBasePricingRate(v1Details.details.loan.terms.pricingData),
-            remaining,
-            elapsed,
-            duration
-        );
-
-        //calculate amount with a linear decay
-        //weight startAmount by the remaining time, and minAmount by the elapsed time
-        currentAmount =
-            _locateCurrent(v1Details.startAmount, v1Details.details.loan.debt[0].amount, remaining, elapsed, duration);
-    }
-
-    function _locateCurrent(uint256 a, uint256 b, uint256 wtA, uint256 wtB, uint256 totalWt)
-        internal
-        pure
-        returns (uint256 current)
-    {
-        // Only modify if values are not equal.
-        if (b != a) {
-            // Aggregate new amounts weighted by time.
-            uint256 totalBeforeDivision = (a * wtA) + (b * wtB);
-            assembly {
-                current := div(totalBeforeDivision, totalWt)
-            }
-            return current;
+        //Calculate rate with a linear growth
+        //Weight startRate by the remaining time, and endRate by the elapsed time
+        uint256 totalBeforeDivision = (v1Details.startRate * remaining) + (endRate * elapsed);
+        assembly {
+            currentRate := div(totalBeforeDivision, duration)
         }
-
-        //minVal == maxVal,
-        return a;
     }
 }

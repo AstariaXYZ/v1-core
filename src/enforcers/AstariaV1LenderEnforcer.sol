@@ -14,7 +14,11 @@ contract AstariaV1LenderEnforcer is LenderEnforcer {
     error LoanRateLessThanCaveatRate();
     error DebtBundlesNotSupported();
 
-    //TODO: add strategy for supporting collection offers
+    struct V1LenderDetails {
+        bool matchIdentifier;
+        LenderEnforcer.Details details;
+    }
+
     function validate(
         AdditionalTransfer[] calldata additionalTransfers,
         Starport.Loan calldata loan,
@@ -24,25 +28,43 @@ contract AstariaV1LenderEnforcer is LenderEnforcer {
             revert DebtBundlesNotSupported();
         }
 
-        uint256 loanRate = abi.decode(loan.terms.pricingData, (BasePricing.Details)).rate;
+        Starport.Terms calldata loanTerms = loan.terms;
+        uint256 loanRate = abi.decode(loanTerms.pricingData, (BasePricing.Details)).rate;
         uint256 loanAmount = loan.debt[0].amount;
-        AstariaV1Lib.validateCompoundInterest(loanAmount, loanRate);
 
-        LenderEnforcer.Details memory details = abi.decode(caveatData, (LenderEnforcer.Details));
-        SpentItem memory caveatDebt = details.loan.debt[0];
+        AstariaV1Lib.validateCompoundInterest(
+            loanAmount,
+            loanRate,
+            AstariaV1Lib.getBaseRecallRecallMax(loanTerms.statusData),
+            AstariaV1Lib.getBasePricingDecimals(loanTerms.pricingData)
+        );
+
+        V1LenderDetails memory v1Details = abi.decode(caveatData, (V1LenderDetails));
+        Starport.Loan memory caveatLoan = v1Details.details.loan;
+        SpentItem memory caveatDebt = caveatLoan.debt[0];
 
         if (loanAmount > caveatDebt.amount) {
             //Debt amount is greater than the max amount or the caveatDebt amount
             revert LoanAmountExceedsCaveatAmount();
         }
 
-        if (loanRate < AstariaV1Lib.getBasePricingRate(details.loan.terms.pricingData)) {
+        bytes memory caveatPricingData = caveatLoan.terms.pricingData;
+        if (loanRate < AstariaV1Lib.getBasePricingRate(caveatPricingData)) {
             //Loan rate is less than the caveatDebt rate
             revert LoanRateLessThanCaveatRate();
         }
 
-        AstariaV1Lib.setBasePricingRate(details.loan.terms.pricingData, loanRate);
+        //Update the caveat loan rate
+        AstariaV1Lib.setBasePricingRate(caveatPricingData, loanRate);
+        //Update the caveat loan amount
         caveatDebt.amount = loanAmount;
-        _validate(additionalTransfers, loan, details);
+
+        if (!v1Details.matchIdentifier) {
+            //Update the caveat loan identifier
+            caveatDebt.identifier = loan.debt[0].identifier;
+        }
+
+        //Hash and match w/ expected borrower
+        _validate(additionalTransfers, loan, v1Details.details);
     }
 }
