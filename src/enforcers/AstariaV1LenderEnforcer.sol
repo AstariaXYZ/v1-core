@@ -69,7 +69,7 @@ contract AstariaV1LenderEnforcer is LenderEnforcer {
             caveatDebt.identifier = loan.debt[0].identifier;
         }
 
-        // ash and match w/ expected borrower
+        // Hash and match w/ expected borrower
         _validate(additionalTransfers, loan, v1Details.details);
     }
 }
