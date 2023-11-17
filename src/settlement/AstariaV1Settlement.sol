@@ -1,13 +1,18 @@
+// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2023 Astaria Labs
+
 pragma solidity ^0.8.17;
 
-import {Settlement} from "starport-core/settlement/Settlement.sol";
 import {Starport, SpentItem} from "starport-core/Starport.sol";
-import {ReceivedItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
-import {BaseRecall} from "src/status/BaseRecall.sol";
-import {DutchAuctionSettlement} from "starport-core/settlement/DutchAuctionSettlement.sol";
-import {StarportLib} from "starport-core/lib/StarportLib.sol";
-import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 import {BasePricing} from "starport-core/pricing/BasePricing.sol";
+import {DutchAuctionSettlement} from "starport-core/settlement/DutchAuctionSettlement.sol";
+import {Settlement} from "starport-core/settlement/Settlement.sol";
+import {StarportLib} from "starport-core/lib/StarportLib.sol";
+
+import {BaseRecall} from "v1-core/status/BaseRecall.sol";
+
+import {ReceivedItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
+import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 
 contract AstariaV1Settlement is DutchAuctionSettlement {
     using {StarportLib.getId} for Starport.Loan;
@@ -178,7 +183,7 @@ contract AstariaV1Settlement is DutchAuctionSettlement {
         if (loan.terms.settlement != address(this)) {
             revert InvalidHandler();
         }
-        Details memory details = abi.decode(loan.terms.settlementData, (Details)); //will revert if this fails
+        Details memory details = abi.decode(loan.terms.settlementData, (Details)); // Will revert if this fails
         return (details.startingPrice > details.endingPrice);
     }
 }

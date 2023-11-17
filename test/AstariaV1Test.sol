@@ -1,20 +1,21 @@
+// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2023 Astaria Labs
+
 pragma solidity ^0.8.17;
 
 import "starport-test/StarportTest.sol";
 
 import {BasePricing} from "starport-core/pricing/BasePricing.sol";
-import {AstariaV1Pricing} from "src/pricing/AstariaV1Pricing.sol";
-
-import {AstariaV1Status} from "src/status/AstariaV1Status.sol";
-
-import {BaseRecall} from "src/status/BaseRecall.sol";
-
-import {AstariaV1Lib} from "src/lib/AstariaV1Lib.sol";
-import {AstariaV1Settlement} from "src/settlement/AstariaV1Settlement.sol";
-import {AstariaV1LenderEnforcer} from "src/enforcers/AstariaV1LenderEnforcer.sol";
-import {AstariaV1BorrowerEnforcer} from "src/enforcers/AstariaV1BorrowerEnforcer.sol";
 import {BorrowerEnforcer} from "starport-core/enforcers/BorrowerEnforcer.sol";
 import {CaveatEnforcer} from "starport-core/enforcers/CaveatEnforcer.sol";
+
+import {AstariaV1BorrowerEnforcer} from "v1-core/enforcers/AstariaV1BorrowerEnforcer.sol";
+import {AstariaV1LenderEnforcer} from "v1-core/enforcers/AstariaV1LenderEnforcer.sol";
+import {AstariaV1Pricing} from "v1-core/pricing/AstariaV1Pricing.sol";
+import {AstariaV1Settlement} from "v1-core/settlement/AstariaV1Settlement.sol";
+import {AstariaV1Status} from "v1-core/status/AstariaV1Status.sol";
+import {BaseRecall} from "v1-core/status/BaseRecall.sol";
+import {AstariaV1Lib} from "v1-core/lib/AstariaV1Lib.sol";
 
 contract AstariaV1Test is StarportTest {
     Account recaller;

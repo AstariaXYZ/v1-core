@@ -1,37 +1,17 @@
 // SPDX-License-Identifier: BUSL-1.1
-/**
- *                                                                                                                           ,--,
- *                                                                                                                        ,---.'|
- *      ,----..    ,---,                                                                            ,-.                   |   | :
- *     /   /   \ ,--.' |                  ,--,                                                  ,--/ /|                   :   : |                 ,---,
- *    |   :     :|  |  :                ,--.'|         ,---,          .---.   ,---.    __  ,-.,--. :/ |                   |   ' :               ,---.'|
- *    .   |  ;. /:  :  :                |  |,      ,-+-. /  |        /. ./|  '   ,'\ ,' ,'/ /|:  : ' /  .--.--.           ;   ; '               |   | :     .--.--.
- *    .   ; /--` :  |  |,--.  ,--.--.   `--'_     ,--.'|'   |     .-'-. ' | /   /   |'  | |' ||  '  /  /  /    '          '   | |__   ,--.--.   :   : :    /  /    '
- *    ;   | ;    |  :  '   | /       \  ,' ,'|   |   |  ,"' |    /___/ \: |.   ; ,. :|  |   ,''  |  : |  :  /`./          |   | :.'| /       \  :     |,-.|  :  /`./
- *    |   : |    |  |   /' :.--.  .-. | '  | |   |   | /  | | .-'.. '   ' .'   | |: :'  :  /  |  |   \|  :  ;_            '   :    ;.--.  .-. | |   : '  ||  :  ;_
- *    .   | '___ '  :  | | | \__\/: . . |  | :   |   | |  | |/___/ \:     ''   | .; :|  | '   '  : |. \\  \    `.         |   |  ./  \__\/: . . |   |  / : \  \    `.
- *    '   ; : .'||  |  ' | : ," .--.; | '  : |__ |   | |  |/ .   \  ' .\   |   :    |;  : |   |  | ' \ \`----.   \        ;   : ;    ," .--.; | '   : |: |  `----.   \
- *    '   | '/  :|  :  :_:,'/  /  ,.  | |  | '.'||   | |--'   \   \   ' \ | \   \  / |  , ;   '  : |--'/  /`--'  /        |   ,/    /  /  ,.  | |   | '/ : /  /`--'  /
- *    |   :    / |  | ,'   ;  :   .'   \;  :    ;|   |/        \   \  |--"   `----'   ---'    ;  |,'  '--'.     /         '---'    ;  :   .'   \|   :    |'--'.     /
- *     \   \ .'  `--''     |  ,     .-./|  ,   / '---'          \   \ |                       '--'      `--'---'                   |  ,     .-.//    \  /   `--'---'
- *      `---`               `--`---'     ---`-'                  '---"                                                              `--`---'    `-'----'
- *
- * Chainworks Labs
- */
+// Copyright (c) 2023 Astaria Labs
+
 pragma solidity ^0.8.17;
 
 import {Starport, SpentItem} from "starport-core/Starport.sol";
-import {ERC20} from "solady/src/tokens/ERC20.sol";
-
 import {BasePricing} from "starport-core/pricing/BasePricing.sol";
+import {AdditionalTransfer} from "starport-core/lib/StarportLib.sol";
+import {StarportLib} from "starport-core/lib/StarportLib.sol";
 
 import {ItemType} from "seaport-types/src/lib/ConsiderationEnums.sol";
-
 import {ConsiderationInterface} from "seaport-types/src/interfaces/ConsiderationInterface.sol";
-import {AdditionalTransfer} from "starport-core/lib/StarportLib.sol";
-
+import {ERC20} from "solady/src/tokens/ERC20.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
-import {StarportLib} from "starport-core/lib/StarportLib.sol";
 
 abstract contract BaseRecall {
     using FixedPointMathLib for uint256;
@@ -55,15 +35,15 @@ abstract contract BaseRecall {
     mapping(uint256 => Recall) public recalls;
 
     struct Details {
-        // period at the begininng of a loan in which the loan cannot be recalled
+        // Period at the begininng of a loan in which the loan cannot be recalled
         uint256 honeymoon;
-        // period for which the recall is active
+        // Period for which the recall is active
         uint256 recallWindow;
-        // days of interest a recaller must stake
+        // Days of interest a recaller must stake
         uint256 recallStakeDuration;
-        // maximum rate of the recall before failure
+        // Maximum rate of the recall before failure
         uint256 recallMax;
-        // ratio the recaller gets at liquidation (1e18, 100%, 1.0)
+        // Ratio the recaller gets at liquidation (1e18, 100%, 1.0)
         uint256 recallerRewardRatio;
     }
 
@@ -81,7 +61,7 @@ abstract contract BaseRecall {
         BasePricing.Details memory pricingDetails = abi.decode(loan.terms.pricingData, (BasePricing.Details));
         uint256 loanId = loan.getId();
 
-        // calculates the porportion of time elapsed, then multiplies times the max rate
+        // Calculates the porportion of time elapsed, then multiplies times the max rate
         uint256 baseAdjustment = 10 ** pricingDetails.decimals;
         uint256 ratio = (((block.timestamp - recalls[loanId].start) * baseAdjustment) / details.recallWindow);
         return (details.recallMax * ratio) / baseAdjustment;
@@ -114,18 +94,18 @@ abstract contract BaseRecall {
         emit Recalled(loanId, msg.sender, block.timestamp + details.recallWindow);
     }
 
-    // transfers all stake to anyone who asks after the LM token is burned
+    // Transfers all stake to anyone who asks after the LM token is burned
     function withdraw(Starport.Loan calldata loan, address receiver) external {
         uint256 loanId = loan.getId();
 
-        // loan has not been refinanced, loan is still active. SP.tokenId changes on refinance
+        // Loan has not been refinanced, loan is still active. SP.tokenId changes on refinance
         if (SP.active(loanId)) {
             revert LoanHasNotBeenRefinanced();
         }
 
         Recall storage recall = recalls[loanId];
         address recaller = recall.recaller;
-        // ensure that a recall exists for the provided tokenId, ensure that the recall
+        // Ensure that a recall exists for the provided tokenId, ensure that the recall
         if (recall.start == 0 || recaller == address(0)) {
             revert WithdrawDoesNotExist();
         }

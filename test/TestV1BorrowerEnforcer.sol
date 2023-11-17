@@ -1,11 +1,17 @@
+// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2023 Astaria Labs
+
 pragma solidity ^0.8.17;
 
-import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
-import {StarportLib, AdditionalTransfer} from "starport-core/lib/StarportLib.sol";
-import {Starport} from "starport-core/Starport.sol";
-import {AstariaV1BorrowerEnforcer} from "src/enforcers/AstariaV1BorrowerEnforcer.sol";
-import {AstariaV1Lib} from "src/lib/AstariaV1Lib.sol";
 import "./AstariaV1Test.sol";
+
+import {Starport} from "starport-core/Starport.sol";
+import {StarportLib, AdditionalTransfer} from "starport-core/lib/StarportLib.sol";
+
+import {AstariaV1BorrowerEnforcer} from "v1-core/enforcers/AstariaV1BorrowerEnforcer.sol";
+import {AstariaV1Lib} from "v1-core/lib/AstariaV1Lib.sol";
+
+import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 
 contract TestV1BorrowerEnforcer is AstariaV1Test, AstariaV1BorrowerEnforcer {
     uint256 endRate = uint256(1e17) / uint256(365 days);
@@ -31,7 +37,7 @@ contract TestV1BorrowerEnforcer is AstariaV1Test, AstariaV1BorrowerEnforcer {
 
         borrowerEnforcer.validate(new AdditionalTransfer[](0), loan, abi.encode(details));
 
-        //Test after endTime
+        // Test after endTime
         vm.warp(block.timestamp + 10 minutes);
         borrowerEnforcer.validate(new AdditionalTransfer[](0), loan, abi.encode(details));
     }
@@ -63,7 +69,7 @@ contract TestV1BorrowerEnforcer is AstariaV1Test, AstariaV1BorrowerEnforcer {
             details: BorrowerEnforcer.Details(loan)
         });
 
-        //revert if startTime > endTime
+        // Revert if startTime > endTime
         vm.expectRevert(stdError.arithmeticError);
         _locateCurrentRate(details);
 
@@ -115,7 +121,7 @@ contract TestV1BorrowerEnforcer is AstariaV1Test, AstariaV1BorrowerEnforcer {
         borrowerEnforcer.validate(new AdditionalTransfer[](0), loan, abi.encode(details));
     }
 
-    //test rate more than current
+    // Test rate more than current
     function testV1BorrowerEnforcerRateGTCurrent() public {
         Starport.Loan memory loan = generateDefaultLoanTerms();
 
@@ -174,7 +180,7 @@ contract TestV1BorrowerEnforcer is AstariaV1Test, AstariaV1BorrowerEnforcer {
         borrowerEnforcer.validate(new AdditionalTransfer[](0), loan, abi.encode(BorrowerEnforcer.Details({loan: loan})));
     }
 
-    //test div by 0
+    // Test div by 0
     function testFuzzRateMethods(BasePricing.Details memory pricing, uint256 newRate) public {
         bytes memory pricingData = abi.encode(pricing);
         assertEq(AstariaV1Lib.getBasePricingRate(pricingData), pricing.rate);

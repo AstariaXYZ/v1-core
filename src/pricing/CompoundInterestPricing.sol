@@ -1,8 +1,12 @@
+// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2023 Astaria Labs
+
 pragma solidity ^0.8.17;
 
 import {Starport} from "starport-core/Starport.sol";
-import {BaseRecallPricing} from "./BaseRecallPricing.sol";
-import {AstariaV1Lib} from "src/lib/AstariaV1Lib.sol";
+
+import {BaseRecallPricing} from "v1-core/pricing/BaseRecallPricing.sol";
+import {AstariaV1Lib} from "v1-core/lib/AstariaV1Lib.sol";
 
 abstract contract CompoundInterestPricing is BaseRecallPricing {
     function calculateInterest(uint256 delta_t, uint256 amount, uint256 rate, uint256 decimals)
