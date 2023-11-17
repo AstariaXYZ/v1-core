@@ -27,11 +27,16 @@ contract AstariaV1Test is StarportTest {
         // erc20s[1].mint(recaller.addr, 10000);
 
         pricing = new AstariaV1Pricing(SP);
+        vm.label(address(pricing), "V1Pricing");
         settlement = new AstariaV1Settlement(SP);
+        vm.label(address(settlement), "V1Settlement");
         status = new AstariaV1Status(SP);
+        vm.label(address(status), "V1Status");
 
         lenderEnforcer = new AstariaV1LenderEnforcer();
+        vm.label(address(lenderEnforcer), "V1LenderEnforcer");
         borrowerEnforcer = new AstariaV1BorrowerEnforcer();
+        vm.label(address(borrowerEnforcer), "V1BorrowerEnforcer");
 
         vm.startPrank(recaller.addr);
         erc20s[0].approve(address(status), 1e18);

@@ -20,7 +20,7 @@ contract AstariaV1Status is BaseStatus, BaseRecall {
     function isRecalled(Starport.Loan calldata loan) external view override returns (bool) {
         Details memory details = abi.decode(loan.terms.statusData, (Details));
         uint256 tokenId = loan.getId();
-        Recall memory recall = recalls[tokenId];
-        return (recall.start + details.recallWindow > block.timestamp) && recall.start != 0;
+        uint64 start = recalls[tokenId].start;
+        return (start + details.recallWindow > block.timestamp) && start != 0;
     }
 }

@@ -20,6 +20,9 @@ contract AstariaV1BorrowerEnforcer is BorrowerEnforcer {
         BorrowerEnforcer.Details details;
     }
 
+    /// @notice Validates a loan against a caveat, w/ an inclining rate auction, and a min/max amount
+    /// @dev Bundle support is not implemented, and will revert
+    /// @dev The rate in pricing is the endRate.
     function validate(
         AdditionalTransfer[] calldata additionalTransfers,
         Starport.Loan calldata loan,
@@ -61,6 +64,12 @@ contract AstariaV1BorrowerEnforcer is BorrowerEnforcer {
 
         //Hash match w/ expected issuer
         _validate(additionalTransfers, loan, v1Details.details);
+    }
+
+    /// @notice Calculates the current maximum valid rate of a caveat
+    function locateCurrentRate(bytes calldata caveatData) external view returns (uint256 currentRate) {
+        V1BorrowerDetails memory v1Details = abi.decode(caveatData, (V1BorrowerDetails));
+        return _locateCurrentRate(v1Details);
     }
 
     function _locateCurrentRate(V1BorrowerDetails memory v1Details) internal view returns (uint256 currentRate) {

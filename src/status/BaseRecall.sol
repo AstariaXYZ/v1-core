@@ -20,7 +20,7 @@
  */
 pragma solidity ^0.8.17;
 
-import {Starport} from "starport-core/Starport.sol";
+import {Starport, SpentItem} from "starport-core/Starport.sol";
 import {ERC20} from "solady/src/tokens/ERC20.sol";
 
 import {BasePricing} from "starport-core/pricing/BasePricing.sol";
@@ -124,22 +124,22 @@ abstract contract BaseRecall {
         }
 
         Recall storage recall = recalls[loanId];
+        address recaller = recall.recaller;
         // ensure that a recall exists for the provided tokenId, ensure that the recall
-        if (recall.start == 0 || recall.recaller == address(0)) {
+        if (recall.start == 0 || recaller == address(0)) {
             revert WithdrawDoesNotExist();
-        }
-
-        Details memory details = abi.decode(loan.terms.statusData, (Details));
-        AdditionalTransfer[] memory recallConsideration = _generateRecallConsideration(
-            recall.recaller, loan, 0, details.recallStakeDuration, 0, address(this), receiver
-        );
-
-        if (recallConsideration.length > 0) {
-            _withdrawRecallStake(recallConsideration);
         }
 
         recall.recaller = payable(address(0));
         recall.start = 0;
+
+        Details memory details = abi.decode(loan.terms.statusData, (Details));
+        AdditionalTransfer[] memory recallConsideration =
+            _generateRecallConsideration(recaller, loan, 0, details.recallStakeDuration, 0, address(this), receiver);
+
+        if (recallConsideration.length > 0) {
+            _withdrawRecallStake(recallConsideration);
+        }
 
         emit Withdraw(loanId, receiver);
     }
@@ -147,10 +147,11 @@ abstract contract BaseRecall {
     function _withdrawRecallStake(AdditionalTransfer[] memory transfers) internal {
         uint256 i = 0;
         for (i; i < transfers.length;) {
-            if (transfers[i].itemType != ItemType.ERC20) {
+            AdditionalTransfer memory transfer = transfers[i];
+            if (transfer.itemType != ItemType.ERC20) {
                 revert InvalidItemType();
             }
-            ERC20(transfers[i].token).transfer(transfers[i].to, transfers[i].amount);
+            ERC20(transfer.token).transfer(transfer.to, transfer.amount);
 
             unchecked {
                 ++i;
@@ -165,8 +166,9 @@ abstract contract BaseRecall {
     {
         Details memory details = abi.decode(loan.terms.statusData, (Details));
         uint256 loanId = loan.getId();
-        Recall memory recall = recalls[loanId];
-        return _generateRecallConsideration(recall.recaller, loan, 0, details.recallStakeDuration, proportion, from, to);
+        return _generateRecallConsideration(
+            recalls[loanId].recaller, loan, 0, details.recallStakeDuration, proportion, from, to
+        );
     }
 
     function _generateRecallConsideration(
@@ -177,7 +179,7 @@ abstract contract BaseRecall {
         uint256 proportion,
         address from,
         address to
-    ) internal view returns (AdditionalTransfer[] memory additionalTransfers) {
+    ) internal pure returns (AdditionalTransfer[] memory additionalTransfers) {
         if (loan.issuer != recaller && loan.borrower != recaller) {
             additionalTransfers = new AdditionalTransfer[](loan.debt.length);
 
@@ -186,14 +188,15 @@ abstract contract BaseRecall {
             uint256 baseAdjustment = (10 ** details.decimals);
             proportion = baseAdjustment - proportion;
             for (uint256 i; i < additionalTransfers.length;) {
+                SpentItem memory debtItem = loan.debt[i];
                 uint256 stake = BasePricing(loan.terms.pricing).calculateInterest(
-                    delta_t, loan.debt[i].amount, details.rate, details.decimals
+                    delta_t, debtItem.amount, details.rate, details.decimals
                 );
                 additionalTransfers[i] = AdditionalTransfer({
-                    itemType: loan.debt[i].itemType,
-                    identifier: loan.debt[i].identifier,
+                    itemType: debtItem.itemType,
+                    identifier: debtItem.identifier,
                     amount: (stake * proportion) / baseAdjustment,
-                    token: loan.debt[i].token,
+                    token: debtItem.token,
                     from: from,
                     to: to
                 });

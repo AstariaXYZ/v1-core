@@ -19,6 +19,9 @@ contract AstariaV1LenderEnforcer is LenderEnforcer {
         LenderEnforcer.Details details;
     }
 
+    /// @notice Validates a loan against a caveat, w/ a minimum rate and a maximum amount
+    /// @dev Bundle support is not implemented, and will revert
+    /// @dev matchIdentifier = false will allow the loan to have a different identifier than the caveat
     function validate(
         AdditionalTransfer[] calldata additionalTransfers,
         Starport.Loan calldata loan,

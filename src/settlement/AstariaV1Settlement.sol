@@ -1,7 +1,7 @@
 pragma solidity ^0.8.17;
 
 import {Settlement} from "starport-core/settlement/Settlement.sol";
-import {Starport} from "starport-core/Starport.sol";
+import {Starport, SpentItem} from "starport-core/Starport.sol";
 import {ReceivedItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
 import {BaseRecall} from "src/status/BaseRecall.sol";
 import {DutchAuctionSettlement} from "starport-core/settlement/DutchAuctionSettlement.sol";
@@ -59,18 +59,25 @@ contract AstariaV1Settlement is DutchAuctionSettlement {
         view
         virtual
         override
-        returns (ReceivedItem[] memory consideration, address restricted)
+        returns (ReceivedItem[] memory consideration, address authorized)
     {
-        (address recaller, uint64 recallStart) = BaseRecall(loan.terms.status).recalls(loan.getId());
+        uint256 start;
+        address recaller;
+        {
+            uint64 recallStart;
+            (recaller, recallStart) = BaseRecall(loan.terms.status).recalls(loan.getId());
 
-        if (recaller == address(0) || recallStart == uint256(0)) {
-            revert LoanNotRecalled();
-        }
-        if (recaller == loan.issuer) {
-            return (new ReceivedItem[](0), recaller);
+            if (recaller == address(0) || recallStart == uint256(0)) {
+                revert LoanNotRecalled();
+            }
+
+            if (recaller == loan.issuer) {
+                return (new ReceivedItem[](0), recaller);
+            }
+
+            start = _getAuctionStart(loan, recallStart);
         }
 
-        uint256 start = _getAuctionStart(loan, recallStart);
         Details memory details = abi.decode(loan.terms.settlementData, (Details));
 
         // DutchAuction has failed, give the NFT back to the lender (if they want it 😐)
@@ -93,16 +100,17 @@ contract AstariaV1Settlement is DutchAuctionSettlement {
         uint256 interest = BasePricing(loan.terms.pricing).getInterest(
             loan, pricingDetails.rate, loan.start, block.timestamp, 0, pricingDetails.decimals
         );
+        SpentItem calldata debtItem = loan.debt[0];
 
         uint256 carry = (interest * pricingDetails.carryRate) / 10 ** pricingDetails.decimals;
 
-        if (carry > 0 && loan.debt[0].amount + interest - carry < settlementPrice) {
-            uint256 excess = settlementPrice - loan.debt[0].amount + interest - carry;
+        if (carry > 0 && debtItem.amount + interest - carry < settlementPrice) {
+            uint256 excess = settlementPrice - debtItem.amount + interest - carry;
             consideration[i] = ReceivedItem({
-                itemType: loan.debt[0].itemType,
-                identifier: loan.debt[0].identifier,
+                itemType: debtItem.itemType,
+                identifier: debtItem.identifier,
                 amount: (excess > carry) ? carry : excess,
-                token: loan.debt[0].token,
+                token: debtItem.token,
                 recipient: payable(loan.originator)
             });
             settlementPrice -= consideration[i].amount;
@@ -117,10 +125,10 @@ contract AstariaV1Settlement is DutchAuctionSettlement {
 
         if (recallerReward > 0) {
             consideration[i] = ReceivedItem({
-                itemType: loan.debt[0].itemType,
-                identifier: loan.debt[0].identifier,
+                itemType: debtItem.itemType,
+                identifier: debtItem.identifier,
                 amount: recallerReward,
-                token: loan.debt[0].token,
+                token: debtItem.token,
                 recipient: payable(recaller)
             });
             settlementPrice -= consideration[i].amount;
@@ -130,10 +138,10 @@ contract AstariaV1Settlement is DutchAuctionSettlement {
         }
 
         consideration[i] = ReceivedItem({
-            itemType: loan.debt[0].itemType,
-            identifier: loan.debt[0].identifier,
+            itemType: debtItem.itemType,
+            identifier: debtItem.identifier,
             amount: settlementPrice,
-            token: loan.debt[0].token,
+            token: debtItem.token,
             recipient: payable(loan.issuer)
         });
 
