@@ -18,6 +18,132 @@ contract TestAstariaV1Loan is AstariaV1Test {
 
     Starport.Loan activeLoan;
 
+    function testNewLoanERC721CollateralDefaultTermsRecallAuctionFailLenderClaim() public {
+        Starport.Terms memory terms = Starport.Terms({
+            status: address(status),
+            settlement: address(settlement),
+            pricing: address(pricing),
+            pricingData: defaultPricingData,
+            settlementData: defaultSettlementData,
+            statusData: defaultStatusData
+        });
+        Starport.Loan memory loan =
+            _createLoan721Collateral20Debt({lender: lender.addr, borrowAmount: 1e18, terms: terms});
+
+        BaseRecall.Details memory statusDetails = abi.decode(loan.terms.statusData, (BaseRecall.Details));
+        skip(statusDetails.honeymoon);
+
+        uint256 recallerBalanceBefore = ERC20(loan.debt[0].token).balanceOf(recaller.addr);
+        vm.prank(recaller.addr);
+        BaseRecall(address(status)).recall(loan);
+
+        AstariaV1Settlement.Details memory settlementDetails =
+            abi.decode(loan.terms.settlementData, (DutchAuctionSettlement.Details));
+
+        skip(statusDetails.recallWindow + settlementDetails.window + 2);
+
+        uint256 balanceBefore = ERC20(loan.debt[0].token).balanceOf(lender.addr);
+
+        OrderParameters memory op = _buildContractOrder(
+            address(loan.custodian),
+            _SpentItemsToOfferItems(loan.collateral),
+            _toConsiderationItems(new ReceivedItem[](0))
+        );
+
+        AdvancedOrder memory x = AdvancedOrder({
+            parameters: op,
+            numerator: 1,
+            denominator: 1,
+            signature: "0x",
+            extraData: abi.encode(Custodian.Command(Actions.Settlement, loan, ""))
+        });
+
+        vm.prank(lender.addr);
+        consideration.fulfillAdvancedOrder({
+            advancedOrder: x,
+            criteriaResolvers: new CriteriaResolver[](0),
+            fulfillerConduitKey: bytes32(0),
+            recipient: address(lender.addr)
+        });
+
+        assertEq(
+            ERC20(loan.debt[0].token).balanceOf(recaller.addr),
+            recallerBalanceBefore,
+            "recaller balance should not change"
+        );
+        assertEq(ERC20(loan.debt[0].token).balanceOf(lender.addr), balanceBefore, "lender balance should not change");
+        assertEq(
+            ERC721(loan.collateral[0].token).ownerOf(loan.collateral[0].identifier),
+            lender.addr,
+            "lender should receive collateral"
+        );
+    }
+
+    function testNewLoanERC721CollateralDefaultTermsRecallAuctionFailLenderClaimRandomFulfiller() public {
+        Starport.Terms memory terms = Starport.Terms({
+            status: address(status),
+            settlement: address(settlement),
+            pricing: address(pricing),
+            pricingData: defaultPricingData,
+            settlementData: defaultSettlementData,
+            statusData: defaultStatusData
+        });
+        Starport.Loan memory loan =
+            _createLoan721Collateral20Debt({lender: lender.addr, borrowAmount: 1e18, terms: terms});
+
+        BaseRecall.Details memory statusDetails = abi.decode(loan.terms.statusData, (BaseRecall.Details));
+        skip(statusDetails.honeymoon);
+
+        uint256 recallerBalanceBefore = ERC20(loan.debt[0].token).balanceOf(recaller.addr);
+        vm.prank(recaller.addr);
+        BaseRecall(address(status)).recall(loan);
+
+        AstariaV1Settlement.Details memory settlementDetails =
+            abi.decode(loan.terms.settlementData, (DutchAuctionSettlement.Details));
+
+        skip(statusDetails.recallWindow + settlementDetails.window + 2);
+
+        uint256 fulfillerBalanceBefore = ERC20(loan.debt[0].token).balanceOf(address(this));
+
+        OrderParameters memory op = _buildContractOrder(
+            address(loan.custodian),
+            _SpentItemsToOfferItems(new SpentItem[](0)),
+            _toConsiderationItems(new ReceivedItem[](0))
+        );
+
+        AdvancedOrder memory x = AdvancedOrder({
+            parameters: op,
+            numerator: 1,
+            denominator: 1,
+            signature: "0x",
+            extraData: abi.encode(Custodian.Command(Actions.Settlement, loan, ""))
+        });
+
+        consideration.fulfillAdvancedOrder({
+            advancedOrder: x,
+            criteriaResolvers: new CriteriaResolver[](0),
+            fulfillerConduitKey: bytes32(0),
+            recipient: address(this) //recipient should be ignored
+        });
+
+        assertEq(
+            ERC20(loan.debt[0].token).balanceOf(address(this)),
+            fulfillerBalanceBefore,
+            "fulfiller balance should not change"
+        );
+        assertEq(
+            ERC20(loan.debt[0].token).balanceOf(recaller.addr),
+            recallerBalanceBefore,
+            "recaller balance should not change"
+        );
+
+        assertEq(
+            ERC721(loan.collateral[0].token).ownerOf(loan.collateral[0].identifier),
+            lender.addr,
+            "lender should receive collateral"
+        );
+    }
+
     function testNewLoanERC721CollateralDefaultTermsRecallBase() public {
         Starport.Terms memory terms = Starport.Terms({
             status: address(status),
@@ -441,6 +567,8 @@ contract TestAstariaV1Loan is AstariaV1Test {
             });
             uint256 balanceAfter = erc20s[0].balanceOf(address(this));
             address owner = erc721s[0].ownerOf(1);
+            console.log("balanceBefore: %s", balanceBefore);
+
             assertEq(
                 balanceBefore - 500 ether + extraPayment[0].amount,
                 balanceAfter,

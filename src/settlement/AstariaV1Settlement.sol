@@ -158,13 +158,9 @@ contract AstariaV1Settlement is DutchAuctionSettlement {
         }
     }
 
-    function postSettlement(Starport.Loan calldata loan, address fulfiller)
-        external
-        virtual
-        override
-        returns (bytes4)
-    {
-        _executeWithdraw(loan, fulfiller);
+    function postSettlement(Starport.Loan calldata loan, address) external virtual override returns (bytes4) {
+        (address recaller,) = BaseRecall(loan.terms.status).recalls(loan.getId());
+        _executeWithdraw(loan, recaller);
         return Settlement.postSettlement.selector;
     }
 

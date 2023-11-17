@@ -27,6 +27,7 @@ contract AstariaV1BorrowerEnforcer is BorrowerEnforcer {
     /// @notice Validates a loan against a caveat, w/ an inclining rate auction, and a min/max amount
     /// @dev Bundle support is not implemented, and will revert
     /// @dev The rate in pricing is the endRate.
+    /// @dev Only viable for use w/ AstariaV1Pricing and AstariaV1Status modules
     function validate(
         AdditionalTransfer[] calldata additionalTransfers,
         Starport.Loan calldata loan,
