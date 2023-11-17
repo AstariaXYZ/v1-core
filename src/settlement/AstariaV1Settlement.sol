@@ -49,14 +49,13 @@ contract AstariaV1Settlement is DutchAuctionSettlement {
         if (start == 0) {
             revert LoanNotRecalled();
         }
-        BaseRecall.Details memory details = abi.decode(loan.terms.statusData, (BaseRecall.Details));
-        return start + details.recallWindow + 1;
+        uint256 recallWindow = abi.decode(loan.terms.statusData, (BaseRecall.Details)).recallWindow;
+        return start + recallWindow + 1;
     }
 
     function _getAuctionStart(Starport.Loan calldata loan, uint64 start) internal view virtual returns (uint256) {
-        BaseRecall.Details memory details = abi.decode(loan.terms.statusData, (BaseRecall.Details));
-
-        return start + details.recallWindow + 1;
+        uint256 recallWindow = abi.decode(loan.terms.statusData, (BaseRecall.Details)).recallWindow;
+        return start + recallWindow + 1;
     }
 
     function getSettlementConsideration(Starport.Loan calldata loan)
@@ -154,7 +153,7 @@ contract AstariaV1Settlement is DutchAuctionSettlement {
             ++i;
         }
 
-        assembly {
+        assembly ("memory-safe") {
             mstore(consideration, i)
         }
     }

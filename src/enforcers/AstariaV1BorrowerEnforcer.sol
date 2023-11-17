@@ -101,7 +101,7 @@ contract AstariaV1BorrowerEnforcer is BorrowerEnforcer {
         // Calculate rate with a linear growth
         // Weight startRate by the remaining time, and endRate by the elapsed time
         uint256 totalBeforeDivision = (v1Details.startRate * remaining) + (endRate * elapsed);
-        assembly {
+        assembly ("memory-safe") {
             currentRate := div(totalBeforeDivision, duration)
         }
     }

@@ -18,6 +18,7 @@ contract TestAstariaV1Settlement is AstariaV1Test, DeepEq {
     using FixedPointMathLib for uint256;
 
     using {StarportLib.getId} for Starport.Loan;
+
     function testGetSettlementConsiderationNoRecallRate() public {
         BaseRecall.Details memory details = abi.decode(defaultStatusData, (BaseRecall.Details));
         defaultStatusData = abi.encode(

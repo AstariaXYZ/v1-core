@@ -197,12 +197,6 @@ contract TestAstariaV1Loan is AstariaV1Test {
             }
         }
         {
-            // uint256 recallContractBalanceBefore = erc20s[0].balanceOf(address(status));
-            // BaseRecall recallContract = BaseRecall(address(status));
-
-            // attempt a withdraw after the loan has been successfully refinanced
-            //            recallContract.withdraw(loan, payable(address(this)));
-
             uint256 recallContractBalanceAfter = erc20s[0].balanceOf(address(status));
             assertEq(recallContractBalanceAfter, uint256(0), "BaseRecall did get emptied as expected");
         }
