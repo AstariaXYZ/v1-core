@@ -548,7 +548,7 @@ contract TestAstariaV1Loan is AstariaV1Test {
                 }
             }
 
-            uint256 balanceBefore = erc20s[0].balanceOf(address(this));
+            uint256 balanceBefore = ERC20(loan.debt[0].token).balanceOf(address(this));
             OrderParameters memory op = _buildContractOrder(address(loan.custodian), repayOffering, consider);
 
             AdvancedOrder memory settlementOrder = AdvancedOrder({
@@ -565,12 +565,12 @@ contract TestAstariaV1Loan is AstariaV1Test {
                 fulfillerConduitKey: bytes32(0),
                 recipient: address(0)
             });
-            uint256 balanceAfter = erc20s[0].balanceOf(address(this));
+            uint256 balanceAfter = ERC20(loan.debt[0].token).balanceOf(address(this));
             address owner = erc721s[0].ownerOf(1);
-            console.log("balanceBefore: %s", balanceBefore);
 
+            assertTrue(balanceBefore != balanceAfter, "Balance not transfered to settlement contract correctly");
             assertEq(
-                balanceBefore - 500 ether + extraPayment[0].amount,
+                balanceBefore - 500 ether,
                 balanceAfter,
                 "balance of buyer not decremented correctly"
             );
