@@ -453,8 +453,8 @@ contract TestAstariaV1Loan is AstariaV1Test {
         loan.toStorage(activeLoan);
         uint256 elapsedTime;
         uint256 stake;
+        uint256 recallerBalanceBefore = erc20s[0].balanceOf(recaller.addr);
         {
-            uint256 balanceBefore = erc20s[0].balanceOf(recaller.addr);
             uint256 recallContractBalanceBefore = erc20s[0].balanceOf(address(status));
             BaseRecall.Details memory details = abi.decode(loan.terms.statusData, (BaseRecall.Details));
             vm.warp(block.timestamp + details.honeymoon);
@@ -472,7 +472,7 @@ contract TestAstariaV1Loan is AstariaV1Test {
             stake = BasePricing(address(pricing)).calculateInterest(
                 details.recallStakeDuration, loan.debt[0].amount, pricingDetails.rate, pricingDetails.decimals
             );
-            assertEq(balanceBefore - stake, balanceAfter, "Recaller balance not transfered correctly");
+            assertEq(recallerBalanceBefore - stake, balanceAfter, "Recaller balance not transfered correctly");
             assertEq(
                 recallContractBalanceBefore + stake,
                 recallContractBalanceAfter,
@@ -511,6 +511,7 @@ contract TestAstariaV1Loan is AstariaV1Test {
             );
             assertEq(restricted, address(0), "SettlementConsideration should be unrestricted");
             AdditionalTransfer[] memory extraPayment;
+            uint256 recallerReward;
             {
                 BasePricing.Details memory pricingDetails = abi.decode(loan.terms.pricingData, (BasePricing.Details));
                 uint256 interest = AstariaV1Lib.calculateCompoundInterest(
@@ -518,7 +519,7 @@ contract TestAstariaV1Loan is AstariaV1Test {
                 );
                 uint256 carry = interest.mulWad(pricingDetails.carryRate);
                 uint256 settlementPrice = 500 ether - carry;
-                uint256 recallerReward = settlementPrice.mulWad(10e16);
+                recallerReward = settlementPrice.mulWad(10e16);
                 assertEq(settlementConsideration[0].amount, carry, "Settlement consideration for carry incorrect");
                 assertEq(
                     settlementConsideration[1].amount, recallerReward, "Settlement consideration for recaller incorrect"
@@ -565,16 +566,23 @@ contract TestAstariaV1Loan is AstariaV1Test {
                 fulfillerConduitKey: bytes32(0),
                 recipient: address(0)
             });
-            uint256 balanceAfter = ERC20(loan.debt[0].token).balanceOf(address(this));
-            address owner = erc721s[0].ownerOf(1);
 
-            assertTrue(balanceBefore != balanceAfter, "Balance not transfered to settlement contract correctly");
+            assertEq(
+                recallerBalanceBefore + recallerReward,
+                erc20s[0].balanceOf(recaller.addr),
+                "Recaller balance not transfered correctly"
+            );
+
             assertEq(
                 balanceBefore - 500 ether,
-                balanceAfter,
+                erc20s[0].balanceOf(address(this)),
                 "balance of buyer not decremented correctly"
             );
-            assertEq(owner, address(this), "Test address should be the owner of the NFT after settlement");
+            assertEq(0, erc20s[0].balanceOf(address(status)), "Balance not transfered from recall contract correctly");
+
+            assertEq(
+                erc721s[0].ownerOf(1), address(this), "Test address should be the owner of the NFT after settlement"
+            );
         }
     }
 }
