@@ -1,12 +1,17 @@
+// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2023 Astaria Labs
+
 pragma solidity ^0.8.17;
 
 import "test/AstariaV1Test.sol";
-import {StarportLib, Actions} from "starport-core/lib/StarportLib.sol";
-import {DeepEq} from "starport-test/utils/DeepEq.sol";
-import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
-import {SpentItemLib} from "seaport-sol/src/lib/SpentItemLib.sol";
-import {Originator} from "starport-core/originators/Originator.sol";
+
 import {CaveatEnforcer} from "starport-core/enforcers/CaveatEnforcer.sol";
+import {Originator} from "starport-core/originators/Originator.sol";
+import {StarportLib, Actions} from "starport-core/lib/StarportLib.sol";
+
+import {DeepEq} from "starport-test/utils/DeepEq.sol";
+import {SpentItemLib} from "seaport-sol/src/lib/SpentItemLib.sol";
+import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 
 contract TestAstariaV1Status is AstariaV1Test, DeepEq {
     using Cast for *;

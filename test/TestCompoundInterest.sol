@@ -1,11 +1,16 @@
+// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2023 Astaria Labs
+
 pragma solidity ^0.8.17;
 
-import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
-import {StarportLib, AdditionalTransfer} from "starport-core/lib/StarportLib.sol";
-import {Starport} from "starport-core/Starport.sol";
+import "test/AstariaV1Test.sol";
 
-import {AstariaV1Lib} from "src/lib/AstariaV1Lib.sol";
-import "./AstariaV1Test.sol";
+import {Starport} from "starport-core/Starport.sol";
+import {StarportLib, AdditionalTransfer} from "starport-core/lib/StarportLib.sol";
+
+import {AstariaV1Lib} from "v1-core/lib/AstariaV1Lib.sol";
+
+import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 
 contract TestCompoundInterest is AstariaV1Test {
     using FixedPointMathLib for uint256;

@@ -1,13 +1,20 @@
+// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2023 Astaria Labs
+
 pragma solidity ^0.8.17;
 
 import "test/AstariaV1Test.sol";
+
 import {StarportLib, Actions} from "starport-core/lib/StarportLib.sol";
-import {DeepEq} from "starport-test/utils/DeepEq.sol";
-import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
-import {SpentItemLib} from "seaport-sol/src/lib/SpentItemLib.sol";
+
 import {Originator} from "starport-core/originators/Originator.sol";
 import {CaveatEnforcer} from "starport-core/enforcers/CaveatEnforcer.sol";
-import {AstariaV1Lib} from "src/lib/AstariaV1Lib.sol";
+
+import {AstariaV1Lib} from "v1-core/lib/AstariaV1Lib.sol";
+
+import {DeepEq} from "starport-test/utils/DeepEq.sol";
+import {SpentItemLib} from "seaport-sol/src/lib/SpentItemLib.sol";
+import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 
 contract TestAstariaV1Pricing is AstariaV1Test, DeepEq {
     using Cast for *;
@@ -46,7 +53,7 @@ contract TestAstariaV1Pricing is AstariaV1Test, DeepEq {
         BasePricing.Details memory baseDetails = abi.decode(loan.terms.pricingData, (BasePricing.Details));
         BaseRecall.Details memory statusDetails = abi.decode(loan.terms.statusData, (BaseRecall.Details));
 
-        //we're lower than the old rate so pay proportions
+        // We're lower than the old rate so pay proportions
         uint256 proportion = 1e18;
         vm.mockCall(
             loan.terms.status, abi.encodeWithSelector(AstariaV1Status.isRecalled.selector, loan), abi.encode(true)
@@ -201,7 +208,7 @@ contract TestAstariaV1Pricing is AstariaV1Test, DeepEq {
         BasePricing.Details memory baseDetails = abi.decode(loan.terms.pricingData, (BasePricing.Details));
         BaseRecall.Details memory statusDetails = abi.decode(loan.terms.statusData, (BaseRecall.Details));
 
-        //we're lower than the old rate so pay proportions
+        // We're lower than the old rate so pay proportions
         uint256 proportion = 1e18;
         vm.mockCall(
             loan.terms.status, abi.encodeWithSelector(AstariaV1Status.isRecalled.selector, loan), abi.encode(true)
@@ -260,7 +267,7 @@ contract TestAstariaV1Pricing is AstariaV1Test, DeepEq {
         BaseRecall.Details memory statusDetails = abi.decode(loan.terms.statusData, (BaseRecall.Details));
         bytes memory newPricingData = abi.encode(BasePricing.Details({carryRate: 0, rate: recallRate, decimals: 18}));
 
-        //we're lower than the old rate so pay proportions
+        // We're lower than the old rate so pay proportions
         uint256 proportion = 1e18 - (baseDetails.rate - recallRate).divWad(baseDetails.rate);
         vm.mockCall(
             loan.terms.status, abi.encodeWithSelector(AstariaV1Status.isRecalled.selector, loan), abi.encode(true)
