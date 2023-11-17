@@ -1,16 +1,20 @@
+// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2023 Astaria Labs
+
 pragma solidity ^0.8.17;
 
 import {Starport} from "starport-core/Starport.sol";
-import {CompoundInterestPricing} from "./CompoundInterestPricing.sol";
+
 import {Pricing} from "starport-core/pricing/Pricing.sol";
 import {BasePricing} from "starport-core/pricing/BasePricing.sol";
-import {SpentItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
-import {AstariaV1Status} from "src/status/AstariaV1Status.sol";
-import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
-import {StarportLib} from "starport-core/lib/StarportLib.sol";
-import {AdditionalTransfer} from "starport-core/lib/StarportLib.sol";
+import {StarportLib, AdditionalTransfer} from "starport-core/lib/StarportLib.sol";
 
-import {AstariaV1Lib} from "src/lib/AstariaV1Lib.sol";
+import {CompoundInterestPricing} from "v1-core/pricing/CompoundInterestPricing.sol";
+import {AstariaV1Status} from "v1-core/status/AstariaV1Status.sol";
+import {AstariaV1Lib} from "v1-core/lib/AstariaV1Lib.sol";
+
+import {SpentItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
+import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 
 contract AstariaV1Pricing is CompoundInterestPricing {
     using FixedPointMathLib for uint256;

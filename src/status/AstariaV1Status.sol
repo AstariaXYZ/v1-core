@@ -1,9 +1,13 @@
+// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2023 Astaria Labs
+
 pragma solidity ^0.8.17;
 
 import {Starport} from "starport-core/Starport.sol";
-import {BaseRecall} from "./BaseRecall.sol";
-import {BaseStatus} from "./BaseStatus.sol";
 import {StarportLib} from "starport-core/lib/StarportLib.sol";
+
+import {BaseRecall} from "v1-core/status/BaseRecall.sol";
+import {BaseStatus} from "v1-core/status/BaseStatus.sol";
 
 contract AstariaV1Status is BaseStatus, BaseRecall {
     using {StarportLib.getId} for Starport.Loan;

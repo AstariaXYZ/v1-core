@@ -1,19 +1,24 @@
+// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2023 Astaria Labs
+
 pragma solidity ^0.8.17;
 
 import "test/AstariaV1Test.sol";
-import {StarportLib, Actions} from "starport-core/lib/StarportLib.sol";
-import {DeepEq} from "starport-test/utils/DeepEq.sol";
-import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
-import {SpentItemLib} from "seaport-sol/src/lib/SpentItemLib.sol";
+
 import {Originator} from "starport-core/originators/Originator.sol";
 import {CaveatEnforcer} from "starport-core/enforcers/CaveatEnforcer.sol";
+import {StarportLib, Actions} from "starport-core/lib/StarportLib.sol";
+
+import {DeepEq} from "starport-test/utils/DeepEq.sol";
+import {SpentItemLib} from "seaport-sol/src/lib/SpentItemLib.sol";
+import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 
 contract TestAstariaV1Settlement is AstariaV1Test, DeepEq {
     using Cast for *;
     using FixedPointMathLib for uint256;
 
     using {StarportLib.getId} for Starport.Loan;
-    // recaller is not the lender, liquidation amount is a dutch auction
+    // Recaller is not the lender, liquidation amount is a dutch auction
 
     function testGetSettlementConsiderationFailedDutchAuction() public {
         Starport.Terms memory terms = Starport.Terms({

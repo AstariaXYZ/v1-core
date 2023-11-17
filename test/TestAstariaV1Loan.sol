@@ -1,10 +1,13 @@
+// SPDX-License-Identifier: BUSL-1.1
+// Copyright (c) 2023 Astaria Labs
+
 pragma solidity ^0.8.17;
 
 import "test/AstariaV1Test.sol";
 
-import {BaseRecall} from "src/status/BaseRecall.sol";
 import {StarportLib, Actions} from "starport-core/lib/StarportLib.sol";
-import {AstariaV1Lib} from "src/lib/AstariaV1Lib.sol";
+import {BaseRecall} from "v1-core/status/BaseRecall.sol";
+import {AstariaV1Lib} from "v1-core/lib/AstariaV1Lib.sol";
 
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 
@@ -325,7 +328,7 @@ contract TestAstariaV1Loan is AstariaV1Test {
         });
         Starport.Loan memory loan =
             _createLoan721Collateral20Debt({lender: lender.addr, borrowAmount: 1e18, terms: terms});
-        //uint256 loanId = loan.getId();
+        // uint256 loanId = loan.getId();
 
         loan.toStorage(activeLoan);
         uint256 elapsedTime;
