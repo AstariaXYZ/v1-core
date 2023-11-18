@@ -6,9 +6,10 @@ pragma solidity ^0.8.17;
 import {Starport} from "starport-core/Starport.sol";
 import {StarportLib} from "starport-core/lib/StarportLib.sol";
 
+import {Validation} from "starport-core/lib/Validation.sol";
+import {BasePricing} from "starport-core/pricing/BasePricing.sol";
 import {BaseRecall} from "v1-core/status/BaseRecall.sol";
 import {BaseStatus} from "v1-core/status/BaseStatus.sol";
-import {Validation} from "starport-core/lib/Validation.sol";
 
 contract AstariaV1Status is BaseStatus, BaseRecall {
     using {StarportLib.getId} for Starport.Loan;
@@ -34,8 +35,12 @@ contract AstariaV1Status is BaseStatus, BaseRecall {
     // @inheritdoc Validation
     function validate(Starport.Loan calldata loan) external view override returns (bytes4) {
         Details memory details = abi.decode(loan.terms.statusData, (Details));
+        BasePricing.Details memory pDetails = abi.decode(loan.terms.pricingData, (BasePricing.Details));
         bool valid = true;
-        if (details.recallerRewardRatio > 1e18 || details.recallMax > 10e18 || details.honeymoon == 0) {
+        if (
+            details.recallerRewardRatio > 10 ** pDetails.decimals || details.recallMax > 10 * 10 ** pDetails.decimals
+                || details.honeymoon == 0
+        ) {
             valid = false;
         }
         return valid ? Validation.validate.selector : bytes4(0xFFFFFFFF);
