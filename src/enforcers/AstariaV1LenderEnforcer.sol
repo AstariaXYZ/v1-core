@@ -11,7 +11,6 @@ import {AdditionalTransfer} from "starport-core/lib/StarportLib.sol";
 import {AstariaV1Lib} from "v1-core/lib/AstariaV1Lib.sol";
 
 import {SpentItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
-import "forge-std/console.sol";
 
 contract AstariaV1LenderEnforcer is LenderEnforcer {
     uint256 constant MAX_DURATION = uint256(3 * 365 * 1 days); // 3 years
@@ -38,21 +37,17 @@ contract AstariaV1LenderEnforcer is LenderEnforcer {
             revert DebtBundlesNotSupported();
         }
 
-        console.log("here");
         Starport.Terms calldata loanTerms = loan.terms;
         uint256 loanRate = abi.decode(loanTerms.pricingData, (BasePricing.Details)).rate;
         uint256 loanAmount = loan.debt[0].amount;
-        console.log("here2");
         AstariaV1Lib.validateCompoundInterest(
             loanAmount,
             loanRate,
             AstariaV1Lib.getBaseRecallRecallMax(loanTerms.statusData),
             AstariaV1Lib.getBasePricingDecimals(loanTerms.pricingData)
         );
-        console.log("here3");
 
         V1LenderDetails memory v1Details = abi.decode(caveatData, (V1LenderDetails));
-        console.log("here4");
         Starport.Loan memory caveatLoan = v1Details.details.loan;
         SpentItem memory caveatDebt = caveatLoan.debt[0];
 
@@ -79,6 +74,5 @@ contract AstariaV1LenderEnforcer is LenderEnforcer {
 
         // Hash and match w/ expected borrower
         _validate(additionalTransfers, loan, v1Details.details);
-        console.log("here5");
     }
 }

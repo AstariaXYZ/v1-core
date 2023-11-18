@@ -6,7 +6,6 @@ pragma solidity ^0.8.17;
 import {Starport} from "starport-core/Starport.sol";
 import {BasePricing} from "starport-core/pricing/BasePricing.sol";
 import {StarportLib} from "starport-core/lib/StarportLib.sol";
-import "forge-std/console2.sol";
 
 import {BaseRecall} from "v1-core/status/BaseRecall.sol";
 
