@@ -56,6 +56,11 @@ abstract contract BaseRecall {
         SP = SP_;
     }
 
+    /**
+     * @dev Gets the recall rate for a loan
+     * @param loan The loan to get the recall rate for
+     * @return recallRate The recall rate for the loan
+     */
     function getRecallRate(Starport.Loan calldata loan) external view returns (uint256) {
         Details memory details = abi.decode(loan.terms.statusData, (Details));
         BasePricing.Details memory pricingDetails = abi.decode(loan.terms.pricingData, (BasePricing.Details));
@@ -67,6 +72,10 @@ abstract contract BaseRecall {
         return (details.recallMax * ratio) / baseAdjustment;
     }
 
+    /**
+     * @dev Recalls a loan
+     * @param loan      The loan to recall
+     */
     function recall(Starport.Loan calldata loan) external {
         Details memory details = abi.decode(loan.terms.statusData, (Details));
 
@@ -94,7 +103,11 @@ abstract contract BaseRecall {
         emit Recalled(loanId, msg.sender, block.timestamp + details.recallWindow);
     }
 
-    // Transfers all stake to anyone who asks after the LM token is burned
+    /**
+     * @dev Withdraws the recall stake from the contract
+     * @param loan      The loan to withdraw the recall stake from
+     * @param receiver  The address to receive the recall stake
+     */
     function withdraw(Starport.Loan calldata loan, address receiver) external {
         uint256 loanId = loan.getId();
 
@@ -124,6 +137,10 @@ abstract contract BaseRecall {
         emit Withdraw(loanId, receiver);
     }
 
+    /**
+     * @dev Withdraws the recall stake from the contract
+     * @param transfers The transfers to make
+     */
     function _withdrawRecallStake(AdditionalTransfer[] memory transfers) internal {
         uint256 i = 0;
         for (i; i < transfers.length;) {
@@ -139,6 +156,14 @@ abstract contract BaseRecall {
         }
     }
 
+    /**
+     * @dev Generates the consideration for a recall
+     * @param loan The loan to generate the consideration for
+     * @param proportion The proportion of the recall to generate the consideration for
+     * @param from The address to transfer the tokens from
+     * @param to The address to transfer the tokens to
+     * @return consideration The consideration for the recall
+     */
     function generateRecallConsideration(Starport.Loan calldata loan, uint256 proportion, address from, address to)
         external
         view

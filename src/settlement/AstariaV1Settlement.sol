@@ -13,6 +13,7 @@ import {BaseRecall} from "v1-core/status/BaseRecall.sol";
 
 import {ReceivedItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
+import {Validation} from "starport-core/lib/Validation.sol";
 
 contract AstariaV1Settlement is DutchAuctionSettlement {
     using {StarportLib.getId} for Starport.Loan;
@@ -25,6 +26,11 @@ contract AstariaV1Settlement is DutchAuctionSettlement {
     error ExecuteHandlerNotImplemented();
     error InvalidHandler();
 
+    /**
+     * @dev retrieve the current auction price
+     * @param loan      The loan in question
+     * @return uint256  The current auction price
+     */
     function getCurrentAuctionPrice(Starport.Loan calldata loan) public view virtual returns (uint256) {
         (address recaller, uint64 recallStart) = BaseRecall(loan.terms.status).recalls(loan.getId());
         if (recaller == loan.issuer || recallStart == uint256(0) || recaller == address(0)) {
@@ -44,6 +50,7 @@ contract AstariaV1Settlement is DutchAuctionSettlement {
         });
     }
 
+    // @inheritdoc DutchAuctionSettlement
     function getAuctionStart(Starport.Loan calldata loan) public view virtual override returns (uint256) {
         (, uint64 start) = BaseRecall(loan.terms.status).recalls(loan.getId());
         if (start == 0) {
@@ -53,11 +60,16 @@ contract AstariaV1Settlement is DutchAuctionSettlement {
         return start + recallWindow + 1;
     }
 
+    /* @dev internal helper to get the auction start to save double decoding
+     * @param loan      The loan in question
+     * @return uint256  The start of the auction
+     */
     function _getAuctionStart(Starport.Loan calldata loan, uint64 start) internal view virtual returns (uint256) {
         uint256 recallWindow = abi.decode(loan.terms.statusData, (BaseRecall.Details)).recallWindow;
         return start + recallWindow + 1;
     }
 
+    // @inheritdoc Settlement
     function getSettlementConsideration(Starport.Loan calldata loan)
         public
         view
@@ -158,12 +170,14 @@ contract AstariaV1Settlement is DutchAuctionSettlement {
         }
     }
 
+    // @inheritdoc Settlement
     function postSettlement(Starport.Loan calldata loan, address) external virtual override returns (bytes4) {
         (address recaller,) = BaseRecall(loan.terms.status).recalls(loan.getId());
         _executeWithdraw(loan, recaller);
         return Settlement.postSettlement.selector;
     }
 
+    // @inheritdoc Settlement
     function postRepayment(Starport.Loan calldata loan, address fulfiller) external virtual override returns (bytes4) {
         _executeWithdraw(loan, fulfiller);
 
@@ -174,11 +188,12 @@ contract AstariaV1Settlement is DutchAuctionSettlement {
         loan.terms.status.call(abi.encodeWithSelector(BaseRecall.withdraw.selector, loan, fulfiller));
     }
 
-    function validate(Starport.Loan calldata loan) external view virtual override returns (bool) {
+    // @inheritdoc Validation
+    function validate(Starport.Loan calldata loan) external view virtual override returns (bytes4) {
         if (loan.terms.settlement != address(this)) {
             revert InvalidHandler();
         }
         Details memory details = abi.decode(loan.terms.settlementData, (Details)); // Will revert if this fails
-        return (details.startingPrice > details.endingPrice);
+        return (details.startingPrice > details.endingPrice) ? Validation.validate.selector : bytes4(0xFFFFFFFF);
     }
 }

@@ -348,7 +348,6 @@ contract TestAstariaV1Loan is AstariaV1Test {
             BaseRecall.Details memory details = abi.decode(loan.terms.statusData, (BaseRecall.Details));
             vm.warp(block.timestamp + details.honeymoon);
             vm.startPrank(lender.addr);
-            conduitController.updateChannel(lenderConduit, address(status), true);
             BaseRecall recallContract = BaseRecall(address(status));
             erc20s[0].approve(loan.terms.status, 10e18);
             recallContract.recall(loan);

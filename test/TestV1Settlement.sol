@@ -12,7 +12,7 @@ import {StarportLib, Actions} from "starport-core/lib/StarportLib.sol";
 import {DeepEq} from "starport-test/utils/DeepEq.sol";
 import {SpentItemLib} from "seaport-sol/src/lib/SpentItemLib.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
-
+import {Validation} from "starport-core/lib/Validation.sol";
 contract TestAstariaV1Settlement is AstariaV1Test, DeepEq {
     using Cast for *;
     using FixedPointMathLib for uint256;
@@ -297,7 +297,7 @@ contract TestAstariaV1Settlement is AstariaV1Test, DeepEq {
         Starport.Loan memory loan =
             _createLoan721Collateral20Debt({lender: lender.addr, borrowAmount: 1e18, terms: terms});
 
-        assert(AstariaV1Settlement(loan.terms.settlement).validate(loan));
+        assertEq(AstariaV1Settlement(loan.terms.settlement).validate(loan), Validation.validate.selector);
     }
 
     function testV1SettlementHandlerValidateInvalidHandler() public {
