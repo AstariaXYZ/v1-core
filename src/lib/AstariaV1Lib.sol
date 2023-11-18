@@ -6,6 +6,7 @@ pragma solidity ^0.8.17;
 import {Starport} from "starport-core/Starport.sol";
 import {BasePricing} from "starport-core/pricing/BasePricing.sol";
 import {StarportLib} from "starport-core/lib/StarportLib.sol";
+import "forge-std/console2.sol";
 
 import {BaseRecall} from "v1-core/status/BaseRecall.sol";
 
@@ -80,12 +81,12 @@ library AstariaV1Lib {
     {
         if (decimals < WAD) {
             uint256 baseAdjustment = 10 ** (WAD - decimals);
-            int256 exponent = int256((rate * baseAdjustment) / 365 days) * int256(delta_t);
+            int256 exponent = int256((rate * baseAdjustment * delta_t) / 365 days);
             amount *= baseAdjustment;
             uint256 result = amount.mulWad(uint256(exponent.expWad())) - amount;
             return result /= baseAdjustment;
         }
-        int256 exponent = int256(rate / 365 days) * int256(delta_t);
+        int256 exponent = int256((rate * delta_t) / 365 days);
         return amount.mulWad(uint256(exponent.expWad())) - amount;
     }
 }
