@@ -16,6 +16,7 @@ import {AstariaV1Lib} from "v1-core/lib/AstariaV1Lib.sol";
 import {SpentItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 import {Validation} from "starport-core/lib/Validation.sol";
+
 contract AstariaV1Pricing is CompoundInterestPricing {
     using FixedPointMathLib for uint256;
     using {StarportLib.getId} for Starport.Loan;
@@ -72,7 +73,6 @@ contract AstariaV1Pricing is CompoundInterestPricing {
 
         (repayConsideration, carryConsideration) = getPaymentConsideration(loan);
     }
-
 
     // @inheritdoc Validation
     function validate(Starport.Loan calldata loan) external pure virtual override returns (bytes4) {

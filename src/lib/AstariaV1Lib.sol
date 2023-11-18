@@ -43,8 +43,7 @@ library AstariaV1Lib {
 
         // calculate interest for 1 second of time
         // loan must produce 1 wei of interest per 1 second of time
-        uint256 interest = calculateCompoundInterest(1, amount, rate, decimals);
-        if (interest == 0) {
+        if (calculateCompoundInterest(1, amount, rate, decimals) == 0) {
             // interest does not accrue at least 1 wei per second
             revert InterestAccrualRoundingMinimum();
         }
