@@ -190,9 +190,6 @@ contract AstariaV1Settlement is DutchAuctionSettlement {
 
     // @inheritdoc Validation
     function validate(Starport.Loan calldata loan) external view virtual override returns (bytes4) {
-        if (loan.terms.settlement != address(this)) {
-            revert InvalidHandler();
-        }
         Details memory details = abi.decode(loan.terms.settlementData, (Details)); // Will revert if this fails
         return (details.startingPrice > details.endingPrice) ? Validation.validate.selector : bytes4(0xFFFFFFFF);
     }

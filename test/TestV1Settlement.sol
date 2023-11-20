@@ -318,4 +318,19 @@ contract TestAstariaV1Settlement is AstariaV1Test, DeepEq {
         vm.expectRevert(abi.encodeWithSelector(AstariaV1Settlement.InvalidHandler.selector));
         AstariaV1Settlement(settlement).validate(loan);
     }
+
+    function testV1SettlementValidateValid() public {
+        Starport.Loan memory loan = generateDefaultLoanTerms();
+        assert(Validation(loan.terms.settlement).validate(loan) == Validation.validate.selector);
+    }
+
+    function testV1SettlementValidateInvalid() public {
+        Starport.Loan memory loan = generateDefaultLoanTerms();
+        DutchAuctionSettlement.Details memory details =
+            abi.decode(loan.terms.settlementData, (DutchAuctionSettlement.Details));
+        details.endingPrice = 10;
+        details.startingPrice = 1;
+        loan.terms.settlementData = abi.encode(details);
+        assert(Validation(loan.terms.settlement).validate(loan) == bytes4(0xFFFFFFFF));
+    }
 }

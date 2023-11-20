@@ -166,6 +166,23 @@ contract TestFuzzV1 is AstariaV1Test, TestFuzzStarport {
         skip(_boundMax(1, uint256(3 * 365 days)));
     }
 
+    function willArithmeticOverflow(Starport.Loan memory loan) internal view virtual override returns (bool) {
+        BasePricing.Details memory pricingDetails = abi.decode(loan.terms.pricingData, (BasePricing.Details));
+        try Pricing(loan.terms.pricing).getPaymentConsideration(loan) returns (
+            SpentItem[] memory repayConsideration, SpentItem[] memory carryConsideration
+        ) {
+            unchecked {
+                uint256 newSupply = erc20s[0].totalSupply() + repayConsideration[0].amount;
+                if (newSupply < erc20s[0].totalSupply() || newSupply < repayConsideration[0].amount) {
+                    return true;
+                }
+            }
+            return false;
+        } catch {
+            return true;
+        }
+    }
+
     function _skipToSettlement(Starport.Loan memory goodLoan) internal virtual override {
         BasePricing.Details memory pricingDetails = abi.decode(goodLoan.terms.pricingData, (BasePricing.Details));
         BaseRecall.Details memory details = abi.decode(goodLoan.terms.statusData, (BaseRecall.Details));
@@ -263,9 +280,10 @@ contract TestFuzzV1 is AstariaV1Test, TestFuzzStarport {
         SpentItem[] memory carryPayment,
         bytes memory pricingData
     ) internal virtual returns (CaveatEnforcer.SignedCaveats memory signedCaveats) {
-        LenderEnforcer.Details memory details = LenderEnforcer.Details({
-            loan: SP.applyRefinanceConsiderationToLoan(goodLoan, considerationPayment, carryPayment, pricingData)
-        });
+        Starport.Loan memory refiLoan = loanCopy(goodLoan);
+        refiLoan.terms.pricingData = pricingData;
+        refiLoan.debt = SP.applyRefinanceConsiderationToLoan(considerationPayment, carryPayment);
+        LenderEnforcer.Details memory details = LenderEnforcer.Details({loan: refiLoan});
 
         AstariaV1LenderEnforcer.V1LenderDetails memory lenderDetails =
             AstariaV1LenderEnforcer.V1LenderDetails({matchIdentifier: true, details: details});
