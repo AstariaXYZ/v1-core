@@ -71,12 +71,18 @@ contract AstariaV1Test is StarportTest {
         (SpentItem[] memory considerationPayment, SpentItem[] memory carryPayment,) =
             Pricing(loan.terms.pricing).getRefinanceConsideration(loan, pricingData, transactor);
 
-        loan = SP.applyRefinanceConsiderationToLoan(loan, considerationPayment, carryPayment, pricingData);
-        loan.issuer = transactor;
-        loan.start = 0;
-        loan.originator = address(0);
+        Starport.Loan memory refiLoan = loanCopy(loan);
+        console.log("carryPayment.length", carryPayment.length);
+        console.log("considerationPayment.amount", considerationPayment[0].amount);
+        console.log("carryPayment.amount", carryPayment[0].amount);
 
-        return LenderEnforcer.Details({loan: loan});
+        refiLoan.debt = SP.applyRefinanceConsiderationToLoan(considerationPayment, carryPayment);
+        refiLoan.terms.pricingData = pricingData;
+        refiLoan.issuer = transactor;
+        refiLoan.start = 0;
+        refiLoan.originator = address(0);
+
+        return LenderEnforcer.Details({loan: refiLoan});
     }
 
     // loan.borrower and signer.addr could be mismatched

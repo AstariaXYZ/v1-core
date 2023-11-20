@@ -144,6 +144,17 @@ contract TestFuzzV1 is AstariaV1Test, TestFuzzStarport {
             amount: _boundMax(params.debtAmount, type(uint112).max),
             token: address(erc20s[1])
         });
+        BasePricing.Details memory pDetails = abi.decode(loan.terms.pricingData, (BasePricing.Details));
+        while (true) {
+            try AstariaV1Pricing(loan.terms.pricing).calculateInterest(
+                1, debt[0].amount, pDetails.rate, pDetails.decimals
+            ) returns (uint256 interest) {
+                break;
+            } catch {
+                debt[0].amount += 100 ** pDetails.decimals;
+                continue;
+            }
+        }
         loan.debt = debt;
         loan.borrower = borrower.addr;
         loan.custodian = SP.defaultCustodian();
