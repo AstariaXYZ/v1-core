@@ -23,7 +23,7 @@ import {
     BaseRecall,
     AstariaV1LenderEnforcer
 } from "test/AstariaV1Test.sol";
-
+import {Validation} from "starport-core/lib/Validation.sol";
 import "forge-std/console.sol";
 
 contract TestFuzzV1 is AstariaV1Test, TestFuzzStarport {
@@ -166,8 +166,8 @@ contract TestFuzzV1 is AstariaV1Test, TestFuzzStarport {
         skip(_boundMax(1, uint256(3 * 365 days)));
     }
 
-    function willArithmeticOverflow(Starport.Loan memory loan) internal view virtual override returns (bool) {
-        BasePricing.Details memory pricingDetails = abi.decode(loan.terms.pricingData, (BasePricing.Details));
+    function willArithmeticOverflow(Starport.Loan memory loan) internal view virtual override returns (bool valid) {
+        vm.assume(AstariaV1Pricing(loan.terms.pricing).validate(loan) == Validation.validate.selector);
         try Pricing(loan.terms.pricing).getPaymentConsideration(loan) returns (
             SpentItem[] memory repayConsideration, SpentItem[] memory carryConsideration
         ) {
