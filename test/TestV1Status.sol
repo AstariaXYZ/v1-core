@@ -321,7 +321,6 @@ contract TestAstariaV1Status is AstariaV1Test, DeepEq {
         assert(Validation(loan.terms.status).validate(loan) == Validation.validate.selector);
     }
 
-    //if (details.recallerRewardRatio > 10 ** pDetails.decimals || details.recallMax > 10 * 10 ** pDetails.decimals) {
     function testV1StatusValidateInValid() public {
         Starport.Loan memory loan = generateDefaultLoanTerms();
         bytes memory defaultDetailsData = loan.terms.statusData;

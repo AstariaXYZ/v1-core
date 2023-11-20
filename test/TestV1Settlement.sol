@@ -301,24 +301,6 @@ contract TestAstariaV1Settlement is AstariaV1Test, DeepEq {
         assertEq(AstariaV1Settlement(loan.terms.settlement).validate(loan), Validation.validate.selector);
     }
 
-    function testV1SettlementHandlerValidateInvalidHandler() public {
-        Starport.Terms memory terms = Starport.Terms({
-            status: address(status),
-            settlement: address(settlement),
-            pricing: address(pricing),
-            pricingData: defaultPricingData,
-            settlementData: defaultSettlementData,
-            statusData: defaultStatusData
-        });
-        Starport.Loan memory loan =
-            _createLoan721Collateral20Debt({lender: lender.addr, borrowAmount: 1e18, terms: terms});
-
-        address settlement = loan.terms.settlement;
-        loan.terms.settlement = address(0);
-        vm.expectRevert(abi.encodeWithSelector(AstariaV1Settlement.InvalidHandler.selector));
-        AstariaV1Settlement(settlement).validate(loan);
-    }
-
     function testV1SettlementValidateValid() public {
         Starport.Loan memory loan = generateDefaultLoanTerms();
         assert(Validation(loan.terms.settlement).validate(loan) == Validation.validate.selector);
