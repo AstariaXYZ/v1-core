@@ -1,5 +1,14 @@
-// SPDX-License-Identifier: BUSL-1.1
-// Copyright (c) 2023 Astaria Labs
+//  SPDX-License-Identifier: BUSL-1.1
+//   █████╗ ███████╗████████╗ █████╗ ██████╗ ██╗ █████╗     ██╗   ██╗ ██╗
+//  ██╔══██╗██╔════╝╚══██╔══╝██╔══██╗██╔══██╗██║██╔══██╗    ██║   ██║███║
+//  ███████║███████╗   ██║   ███████║██████╔╝██║███████║    ██║   ██║╚██║
+//  ██╔══██║╚════██║   ██║   ██╔══██║██╔══██╗██║██╔══██║    ╚██╗ ██╔╝ ██║
+//  ██║  ██║███████║   ██║   ██║  ██║██║  ██║██║██║  ██║     ╚████╔╝  ██║
+//  ╚═╝  ╚═╝╚══════╝   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝╚═╝  ╚═╝      ╚═══╝   ╚═╝
+//
+//  Astaria v1 Lending
+//  Built on Starport https://github.com/astariaXYZ/starport
+//  Designed with love by Astaria Labs, Inc
 
 pragma solidity ^0.8.17;
 
@@ -21,9 +30,21 @@ contract AstariaV1Pricing is CompoundInterestPricing {
     using FixedPointMathLib for uint256;
     using {StarportLib.getId} for Starport.Loan;
 
-    constructor(Starport SP_) Pricing(SP_) {}
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                       CUSTOM ERRORS                        */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     error InsufficientRefinance();
+
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                        CONSTRUCTOR                         */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
+    constructor(Starport SP_) Pricing(SP_) {}
+
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                     EXTERNAL FUNCTIONS                     */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     // @inheritdoc Pricing
     function getRefinanceConsideration(Starport.Loan calldata loan, bytes calldata newPricingData, address fulfiller)
@@ -37,9 +58,9 @@ contract AstariaV1Pricing is CompoundInterestPricing {
             AdditionalTransfer[] memory recallConsideration
         )
     {
-        // borrowers can refinance a loan at any time
+        // Borrowers can refinance a loan at any time
         if (fulfiller != loan.borrower) {
-            // check if a recall is occuring
+            // Check if a recall is occuring
             AstariaV1Status status = AstariaV1Status(loan.terms.status);
 
             Details memory newDetails = abi.decode(newPricingData, (Details));
@@ -48,7 +69,7 @@ contract AstariaV1Pricing is CompoundInterestPricing {
                 revert InvalidRefinance();
             }
             uint256 rate = status.getRecallRate(loan);
-            // offered loan did not meet the terms of the recall auction
+            // Offered loan did not meet the terms of the recall auction
             if (newDetails.rate > rate) {
                 revert InsufficientRefinance();
             }
@@ -56,15 +77,15 @@ contract AstariaV1Pricing is CompoundInterestPricing {
             uint256 proportion;
             address payable receiver = payable(loan.issuer);
             uint256 loanId = loan.getId();
-            // scenario where the recaller is not penalized
-            // recaller stake is refunded
+            // Scenario where the recaller is not penalized
+            // Recaller stake is refunded
             if (newDetails.rate > oldDetails.rate) {
                 proportion = 0;
                 (receiver,) = status.recalls(loanId);
             } else {
-                // scenario where the recaller is penalized
-                // essentially the old lender and the new lender split the stake of the recaller
-                // split is proportional to the difference in rate
+                // Scenario where the recaller is penalized
+                // Essentially the old lender and the new lender split the stake of the recaller
+                // Split is proportional to the difference in rate
                 proportion = (oldDetails.rate - newDetails.rate).divWad(oldDetails.rate);
             }
             recallConsideration = status.generateRecallConsideration(loan, proportion, fulfiller, receiver);

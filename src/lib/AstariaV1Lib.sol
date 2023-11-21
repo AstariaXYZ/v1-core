@@ -1,5 +1,14 @@
-// SPDX-License-Identifier: BUSL-1.1
-// Copyright (c) 2023 Astaria Labs
+//  SPDX-License-Identifier: BUSL-1.1
+//   █████╗ ███████╗████████╗ █████╗ ██████╗ ██╗ █████╗     ██╗   ██╗ ██╗
+//  ██╔══██╗██╔════╝╚══██╔══╝██╔══██╗██╔══██╗██║██╔══██╗    ██║   ██║███║
+//  ███████║███████╗   ██║   ███████║██████╔╝██║███████║    ██║   ██║╚██║
+//  ██╔══██║╚════██║   ██║   ██╔══██║██╔══██╗██║██╔══██║    ╚██╗ ██╔╝ ██║
+//  ██║  ██║███████║   ██║   ██║  ██║██║  ██║██║██║  ██║     ╚████╔╝  ██║
+//  ╚═╝  ╚═╝╚══════╝   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝╚═╝  ╚═╝      ╚═══╝   ╚═╝
+//
+//  Astaria v1 Lending
+//  Built on Starport https://github.com/astariaXYZ/starport
+//  Designed with love by Astaria Labs, Inc
 
 pragma solidity ^0.8.17;
 
@@ -16,35 +25,67 @@ library AstariaV1Lib {
     using FixedPointMathLib for uint256;
     using FixedPointMathLib for int256;
 
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                  CONSTANTS AND IMMUTABLES                  */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
     uint256 constant WAD = 18;
     uint256 constant MAX_DURATION = uint256(3 * 365 * 1 days); // 3 years
+
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                       CUSTOM ERRORS                        */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     error InterestAccrualRoundingMinimum();
     error UnsupportedDecimalValue();
     error RateExceedMaxRecallRate();
 
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                     PUBLIC FUNCTIONS                       */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
+    function calculateCompoundInterest(uint256 delta_t, uint256 amount, uint256 rate, uint256 decimals)
+        public
+        pure
+        returns (uint256)
+    {
+        if (decimals < WAD) {
+            uint256 baseAdjustment = 10 ** (WAD - decimals);
+            int256 exponent = int256((rate * baseAdjustment * delta_t) / 365 days);
+            amount *= baseAdjustment;
+            uint256 result = amount.mulWad(uint256(exponent.expWad())) - amount;
+            return result /= baseAdjustment;
+        }
+        int256 exponent = int256((rate * delta_t) / 365 days);
+        return amount.mulWad(uint256(exponent.expWad())) - amount;
+    }
+
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                    INTERNAL FUNCTIONS                      */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
     function validateCompoundInterest(uint256 amount, uint256 rate, uint256 recallMax, uint256 decimals)
         internal
         pure
     {
-        // rate should never exceed the recallMax rate
+        // Rate should never exceed the recallMax rate
         if (rate > recallMax) {
             revert RateExceedMaxRecallRate();
         }
 
-        // only decimal values of 1-18 are supported
+        // Only decimal values of 1-18 are supported
         if (decimals > 18 || decimals == 0) {
             revert UnsupportedDecimalValue();
         }
 
-        // check to validate that the MAX_DURATION does not overflow interest calculation
-        // creates a maximum safe duration for a loan, loans can go beyond MAX_DURATION with undefined behavior
+        // Check to validate that the MAX_DURATION does not overflow interest calculation
+        // Creates a maximum safe duration for a loan, loans can go beyond MAX_DURATION with undefined behavior
         calculateCompoundInterest(MAX_DURATION, amount, recallMax, decimals);
 
-        // calculate interest for 1 second of time
-        // loan must produce 1 wei of interest per 1 second of time
+        // Calculate interest for 1 second of time
+        // Loan must produce 1 wei of interest per 1 second of time
         if (calculateCompoundInterest(1, amount, rate, decimals) == 0) {
-            // interest does not accrue at least 1 wei per second
+            // Interest does not accrue at least 1 wei per second
             revert InterestAccrualRoundingMinimum();
         }
     }
@@ -71,21 +112,5 @@ library AstariaV1Lib {
         assembly ("memory-safe") {
             mstore(add(0x20, pricingData), newRate)
         }
-    }
-
-    function calculateCompoundInterest(uint256 delta_t, uint256 amount, uint256 rate, uint256 decimals)
-        public
-        pure
-        returns (uint256)
-    {
-        if (decimals < WAD) {
-            uint256 baseAdjustment = 10 ** (WAD - decimals);
-            int256 exponent = int256((rate * baseAdjustment * delta_t) / 365 days);
-            amount *= baseAdjustment;
-            uint256 result = amount.mulWad(uint256(exponent.expWad())) - amount;
-            return result /= baseAdjustment;
-        }
-        int256 exponent = int256((rate * delta_t) / 365 days);
-        return amount.mulWad(uint256(exponent.expWad())) - amount;
     }
 }

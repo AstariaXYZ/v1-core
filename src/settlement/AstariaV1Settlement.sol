@@ -1,5 +1,14 @@
-// SPDX-License-Identifier: BUSL-1.1
-// Copyright (c) 2023 Astaria Labs
+//  SPDX-License-Identifier: BUSL-1.1
+//   █████╗ ███████╗████████╗ █████╗ ██████╗ ██╗ █████╗     ██╗   ██╗ ██╗
+//  ██╔══██╗██╔════╝╚══██╔══╝██╔══██╗██╔══██╗██║██╔══██╗    ██║   ██║███║
+//  ███████║███████╗   ██║   ███████║██████╔╝██║███████║    ██║   ██║╚██║
+//  ██╔══██║╚════██║   ██║   ██╔══██║██╔══██╗██║██╔══██║    ╚██╗ ██╔╝ ██║
+//  ██║  ██║███████║   ██║   ██║  ██║██║  ██║██║██║  ██║     ╚████╔╝  ██║
+//  ╚═╝  ╚═╝╚══════╝   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝╚═╝  ╚═╝      ╚═══╝   ╚═╝
+//
+//  Astaria v1 Lending
+//  Built on Starport https://github.com/astariaXYZ/starport
+//  Designed with love by Astaria Labs, Inc
 
 pragma solidity ^0.8.17;
 
@@ -19,17 +28,29 @@ contract AstariaV1Settlement is DutchAuctionSettlement {
     using {StarportLib.getId} for Starport.Loan;
     using FixedPointMathLib for uint256;
 
-    constructor(Starport SP_) DutchAuctionSettlement(SP_) {}
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                       CUSTOM ERRORS                        */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
-    error NoAuction();
-    error LoanNotRecalled();
     error ExecuteHandlerNotImplemented();
     error InvalidHandler();
+    error LoanNotRecalled();
+    error NoAuction();
+
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                        CONSTRUCTOR                         */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
+    constructor(Starport SP_) DutchAuctionSettlement(SP_) {}
+
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                     PUBLIC FUNCTIONS                       */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     /**
      * @dev retrieve the current auction price
-     * @param loan      The loan in question
-     * @return uint256  The current auction price
+     * @param loan The loan in question
+     * @return uint256 The current auction price
      */
     function getCurrentAuctionPrice(Starport.Loan calldata loan) public view virtual returns (uint256) {
         (address recaller, uint64 recallStart) = BaseRecall(loan.terms.status).recalls(loan.getId());
@@ -60,6 +81,10 @@ contract AstariaV1Settlement is DutchAuctionSettlement {
         return start + recallWindow + 1;
     }
 
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                    INTERNAL FUNCTIONS                      */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
     /* @dev internal helper to get the auction start to save double decoding
      * @param loan      The loan in question
      * @return uint256  The start of the auction
@@ -68,6 +93,34 @@ contract AstariaV1Settlement is DutchAuctionSettlement {
         uint256 recallWindow = abi.decode(loan.terms.statusData, (BaseRecall.Details)).recallWindow;
         return start + recallWindow + 1;
     }
+
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                     EXTERNAL FUNCTIONS                     */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
+    // @inheritdoc Settlement
+    function postSettlement(Starport.Loan calldata loan, address) external virtual override returns (bytes4) {
+        (address recaller,) = BaseRecall(loan.terms.status).recalls(loan.getId());
+        _executeWithdraw(loan, recaller);
+        return Settlement.postSettlement.selector;
+    }
+
+    // @inheritdoc Settlement
+    function postRepayment(Starport.Loan calldata loan, address fulfiller) external virtual override returns (bytes4) {
+        _executeWithdraw(loan, fulfiller);
+
+        return Settlement.postRepayment.selector;
+    }
+
+    // @inheritdoc Validation
+    function validate(Starport.Loan calldata loan) external view virtual override returns (bytes4) {
+        Details memory details = abi.decode(loan.terms.settlementData, (Details)); // Will revert if this fails
+        return (details.startingPrice > details.endingPrice) ? Validation.validate.selector : bytes4(0xFFFFFFFF);
+    }
+
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                     PUBLIC FUNCTIONS                       */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     // @inheritdoc Settlement
     function getSettlementConsideration(Starport.Loan calldata loan)
@@ -170,27 +223,11 @@ contract AstariaV1Settlement is DutchAuctionSettlement {
         }
     }
 
-    // @inheritdoc Settlement
-    function postSettlement(Starport.Loan calldata loan, address) external virtual override returns (bytes4) {
-        (address recaller,) = BaseRecall(loan.terms.status).recalls(loan.getId());
-        _executeWithdraw(loan, recaller);
-        return Settlement.postSettlement.selector;
-    }
-
-    // @inheritdoc Settlement
-    function postRepayment(Starport.Loan calldata loan, address fulfiller) external virtual override returns (bytes4) {
-        _executeWithdraw(loan, fulfiller);
-
-        return Settlement.postRepayment.selector;
-    }
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                    INTERNAL FUNCTIONS                      */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     function _executeWithdraw(Starport.Loan calldata loan, address fulfiller) internal {
         loan.terms.status.call(abi.encodeWithSelector(BaseRecall.withdraw.selector, loan, fulfiller));
-    }
-
-    // @inheritdoc Validation
-    function validate(Starport.Loan calldata loan) external view virtual override returns (bytes4) {
-        Details memory details = abi.decode(loan.terms.settlementData, (Details)); // Will revert if this fails
-        return (details.startingPrice > details.endingPrice) ? Validation.validate.selector : bytes4(0xFFFFFFFF);
     }
 }

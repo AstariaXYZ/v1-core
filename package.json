@@ -16,6 +16,6 @@
   },
   "scripts": {
     "prepare": "husky install",
-    "snapshot": "forge snapshot --diff --no-match-test /^testFuzz/g"
+    "snapshot": "forge snapshot --diff --no-match-path *fuzz*"
   }
 }
