@@ -28,11 +28,16 @@ contract AstariaV1Test is StarportTest {
         // erc20s[1].mint(recaller.addr, 10000);
 
         pricing = new AstariaV1Pricing(SP);
+        vm.label(address(pricing), "V1Pricing");
         settlement = new AstariaV1Settlement(SP);
+        vm.label(address(settlement), "V1Settlement");
         status = new AstariaV1Status(SP);
+        vm.label(address(status), "V1Status");
 
         lenderEnforcer = new AstariaV1LenderEnforcer();
+        vm.label(address(lenderEnforcer), "V1LenderEnforcer");
         borrowerEnforcer = new AstariaV1BorrowerEnforcer();
+        vm.label(address(borrowerEnforcer), "V1BorrowerEnforcer");
 
         vm.startPrank(recaller.addr);
         erc20s[0].approve(address(status), 1e18);
@@ -66,12 +71,18 @@ contract AstariaV1Test is StarportTest {
         (SpentItem[] memory considerationPayment, SpentItem[] memory carryPayment,) =
             Pricing(loan.terms.pricing).getRefinanceConsideration(loan, pricingData, transactor);
 
-        loan = SP.applyRefinanceConsiderationToLoan(loan, considerationPayment, carryPayment, pricingData);
-        loan.issuer = transactor;
-        loan.start = 0;
-        loan.originator = address(0);
+        Starport.Loan memory refiLoan = loanCopy(loan);
+        console.log("carryPayment.length", carryPayment.length);
+        console.log("considerationPayment.amount", considerationPayment[0].amount);
+        console.log("carryPayment.amount", carryPayment[0].amount);
 
-        return LenderEnforcer.Details({loan: loan});
+        refiLoan.debt = SP.applyRefinanceConsiderationToLoan(considerationPayment, carryPayment);
+        refiLoan.terms.pricingData = pricingData;
+        refiLoan.issuer = transactor;
+        refiLoan.start = 0;
+        refiLoan.originator = address(0);
+
+        return LenderEnforcer.Details({loan: refiLoan});
     }
 
     // loan.borrower and signer.addr could be mismatched
@@ -87,8 +98,8 @@ contract AstariaV1Test is StarportTest {
         loan.issuer = address(0);
         AstariaV1BorrowerEnforcer.V1BorrowerDetails memory v1BorrowerDetails = AstariaV1BorrowerEnforcer
             .V1BorrowerDetails({
-            startTime: block.timestamp,
-            endTime: block.timestamp,
+            startBlock: block.number,
+            endBlock: block.number,
             startRate: AstariaV1Lib.getBasePricingRate(loan.terms.pricingData),
             minAmount: loan.debt[0].amount,
             maxAmount: loan.debt[0].amount,

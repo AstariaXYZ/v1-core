@@ -43,33 +43,32 @@ library AstariaV1Lib {
 
         // calculate interest for 1 second of time
         // loan must produce 1 wei of interest per 1 second of time
-        uint256 interest = calculateCompoundInterest(1, amount, rate, decimals);
-        if (interest == 0) {
+        if (calculateCompoundInterest(1, amount, rate, decimals) == 0) {
             // interest does not accrue at least 1 wei per second
             revert InterestAccrualRoundingMinimum();
         }
     }
 
     function getBaseRecallRecallMax(bytes memory statusData) internal pure returns (uint256 recallMax) {
-        assembly {
+        assembly ("memory-safe") {
             recallMax := mload(add(0x80, statusData))
         }
     }
 
     function getBasePricingDecimals(bytes memory pricingData) internal pure returns (uint256 decimals) {
-        assembly {
+        assembly ("memory-safe") {
             decimals := mload(add(0x60, pricingData))
         }
     }
 
     function getBasePricingRate(bytes memory pricingData) internal pure returns (uint256 rate) {
-        assembly {
+        assembly ("memory-safe") {
             rate := mload(add(0x20, pricingData))
         }
     }
 
     function setBasePricingRate(bytes memory pricingData, uint256 newRate) internal pure {
-        assembly {
+        assembly ("memory-safe") {
             mstore(add(0x20, pricingData), newRate)
         }
     }

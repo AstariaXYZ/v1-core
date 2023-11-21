@@ -102,8 +102,7 @@ contract TestV1LenderEnforcer is AstariaV1Test, AstariaV1LenderEnforcer {
         debt[1] = _getERC721SpentItem(TestERC721(loan.debt[0].token), loan.debt[0].identifier + 1);
         loan.debt = debt;
 
-        AstariaV1LenderEnforcer.V1LenderDetails memory details =
-            AstariaV1LenderEnforcer.V1LenderDetails({matchIdentifier: false, details: LenderEnforcer.Details(loan)});
+        AstariaV1LenderEnforcer.V1LenderDetails({matchIdentifier: false, details: LenderEnforcer.Details(loan)});
 
         vm.expectRevert(DebtBundlesNotSupported.selector);
         lenderEnforcer.validate(new AdditionalTransfer[](0), loan, abi.encode(LenderEnforcer.Details({loan: loan})));

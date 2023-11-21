@@ -24,6 +24,10 @@ contract AstariaV1LenderEnforcer is LenderEnforcer {
         LenderEnforcer.Details details;
     }
 
+    /// @notice Validates a loan against a caveat, w/ a minimum rate and a maximum amount
+    /// @dev Bundle support is not implemented, and will revert
+    /// @dev matchIdentifier = false will allow the loan to have a different identifier than the caveat
+    /// @dev Only viable for use w/ AstariaV1Pricing and AstariaV1Status modules
     function validate(
         AdditionalTransfer[] calldata additionalTransfers,
         Starport.Loan calldata loan,
@@ -36,7 +40,6 @@ contract AstariaV1LenderEnforcer is LenderEnforcer {
         Starport.Terms calldata loanTerms = loan.terms;
         uint256 loanRate = abi.decode(loanTerms.pricingData, (BasePricing.Details)).rate;
         uint256 loanAmount = loan.debt[0].amount;
-
         AstariaV1Lib.validateCompoundInterest(
             loanAmount,
             loanRate,

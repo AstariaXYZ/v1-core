@@ -3,7 +3,7 @@
 
 pragma solidity ^0.8.17;
 
-import {Starport} from "starport-core/Starport.sol";
+import {Starport, SpentItem} from "starport-core/Starport.sol";
 import {BasePricing} from "starport-core/pricing/BasePricing.sol";
 import {DutchAuctionSettlement} from "starport-core/settlement/DutchAuctionSettlement.sol";
 import {Settlement} from "starport-core/settlement/Settlement.sol";
@@ -13,6 +13,7 @@ import {BaseRecall} from "v1-core/status/BaseRecall.sol";
 
 import {ReceivedItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
+import {Validation} from "starport-core/lib/Validation.sol";
 
 contract AstariaV1Settlement is DutchAuctionSettlement {
     using {StarportLib.getId} for Starport.Loan;
@@ -25,6 +26,11 @@ contract AstariaV1Settlement is DutchAuctionSettlement {
     error ExecuteHandlerNotImplemented();
     error InvalidHandler();
 
+    /**
+     * @dev retrieve the current auction price
+     * @param loan      The loan in question
+     * @return uint256  The current auction price
+     */
     function getCurrentAuctionPrice(Starport.Loan calldata loan) public view virtual returns (uint256) {
         (address recaller, uint64 recallStart) = BaseRecall(loan.terms.status).recalls(loan.getId());
         if (recaller == loan.issuer || recallStart == uint256(0) || recaller == address(0)) {
@@ -44,38 +50,50 @@ contract AstariaV1Settlement is DutchAuctionSettlement {
         });
     }
 
+    // @inheritdoc DutchAuctionSettlement
     function getAuctionStart(Starport.Loan calldata loan) public view virtual override returns (uint256) {
         (, uint64 start) = BaseRecall(loan.terms.status).recalls(loan.getId());
         if (start == 0) {
             revert LoanNotRecalled();
         }
-        BaseRecall.Details memory details = abi.decode(loan.terms.statusData, (BaseRecall.Details));
-        return start + details.recallWindow + 1;
+        uint256 recallWindow = abi.decode(loan.terms.statusData, (BaseRecall.Details)).recallWindow;
+        return start + recallWindow + 1;
     }
 
+    /* @dev internal helper to get the auction start to save double decoding
+     * @param loan      The loan in question
+     * @return uint256  The start of the auction
+     */
     function _getAuctionStart(Starport.Loan calldata loan, uint64 start) internal view virtual returns (uint256) {
-        BaseRecall.Details memory details = abi.decode(loan.terms.statusData, (BaseRecall.Details));
-
-        return start + details.recallWindow + 1;
+        uint256 recallWindow = abi.decode(loan.terms.statusData, (BaseRecall.Details)).recallWindow;
+        return start + recallWindow + 1;
     }
 
+    // @inheritdoc Settlement
     function getSettlementConsideration(Starport.Loan calldata loan)
         public
         view
         virtual
         override
-        returns (ReceivedItem[] memory consideration, address restricted)
+        returns (ReceivedItem[] memory consideration, address authorized)
     {
-        (address recaller, uint64 recallStart) = BaseRecall(loan.terms.status).recalls(loan.getId());
+        uint256 start;
+        address recaller;
+        {
+            uint64 recallStart;
+            (recaller, recallStart) = BaseRecall(loan.terms.status).recalls(loan.getId());
 
-        if (recaller == address(0) || recallStart == uint256(0)) {
-            revert LoanNotRecalled();
-        }
-        if (recaller == loan.issuer) {
-            return (new ReceivedItem[](0), recaller);
+            if (recaller == address(0) || recallStart == uint256(0)) {
+                revert LoanNotRecalled();
+            }
+
+            if (recaller == loan.issuer) {
+                return (new ReceivedItem[](0), recaller);
+            }
+
+            start = _getAuctionStart(loan, recallStart);
         }
 
-        uint256 start = _getAuctionStart(loan, recallStart);
         Details memory details = abi.decode(loan.terms.settlementData, (Details));
 
         // DutchAuction has failed, give the NFT back to the lender (if they want it 😐)
@@ -98,16 +116,17 @@ contract AstariaV1Settlement is DutchAuctionSettlement {
         uint256 interest = BasePricing(loan.terms.pricing).getInterest(
             loan, pricingDetails.rate, loan.start, block.timestamp, 0, pricingDetails.decimals
         );
+        SpentItem calldata debtItem = loan.debt[0];
 
         uint256 carry = (interest * pricingDetails.carryRate) / 10 ** pricingDetails.decimals;
 
-        if (carry > 0 && loan.debt[0].amount + interest - carry < settlementPrice) {
-            uint256 excess = settlementPrice - loan.debt[0].amount + interest - carry;
+        if (carry > 0 && debtItem.amount + interest - carry < settlementPrice) {
+            uint256 excess = settlementPrice - debtItem.amount + interest - carry;
             consideration[i] = ReceivedItem({
-                itemType: loan.debt[0].itemType,
-                identifier: loan.debt[0].identifier,
+                itemType: debtItem.itemType,
+                identifier: debtItem.identifier,
                 amount: (excess > carry) ? carry : excess,
-                token: loan.debt[0].token,
+                token: debtItem.token,
                 recipient: payable(loan.originator)
             });
             settlementPrice -= consideration[i].amount;
@@ -122,10 +141,10 @@ contract AstariaV1Settlement is DutchAuctionSettlement {
 
         if (recallerReward > 0) {
             consideration[i] = ReceivedItem({
-                itemType: loan.debt[0].itemType,
-                identifier: loan.debt[0].identifier,
+                itemType: debtItem.itemType,
+                identifier: debtItem.identifier,
                 amount: recallerReward,
-                token: loan.debt[0].token,
+                token: debtItem.token,
                 recipient: payable(recaller)
             });
             settlementPrice -= consideration[i].amount;
@@ -135,10 +154,10 @@ contract AstariaV1Settlement is DutchAuctionSettlement {
         }
 
         consideration[i] = ReceivedItem({
-            itemType: loan.debt[0].itemType,
-            identifier: loan.debt[0].identifier,
+            itemType: debtItem.itemType,
+            identifier: debtItem.identifier,
             amount: settlementPrice,
-            token: loan.debt[0].token,
+            token: debtItem.token,
             recipient: payable(loan.issuer)
         });
 
@@ -146,21 +165,19 @@ contract AstariaV1Settlement is DutchAuctionSettlement {
             ++i;
         }
 
-        assembly {
+        assembly ("memory-safe") {
             mstore(consideration, i)
         }
     }
 
-    function postSettlement(Starport.Loan calldata loan, address fulfiller)
-        external
-        virtual
-        override
-        returns (bytes4)
-    {
-        _executeWithdraw(loan, fulfiller);
+    // @inheritdoc Settlement
+    function postSettlement(Starport.Loan calldata loan, address) external virtual override returns (bytes4) {
+        (address recaller,) = BaseRecall(loan.terms.status).recalls(loan.getId());
+        _executeWithdraw(loan, recaller);
         return Settlement.postSettlement.selector;
     }
 
+    // @inheritdoc Settlement
     function postRepayment(Starport.Loan calldata loan, address fulfiller) external virtual override returns (bytes4) {
         _executeWithdraw(loan, fulfiller);
 
@@ -171,11 +188,9 @@ contract AstariaV1Settlement is DutchAuctionSettlement {
         loan.terms.status.call(abi.encodeWithSelector(BaseRecall.withdraw.selector, loan, fulfiller));
     }
 
-    function validate(Starport.Loan calldata loan) external view virtual override returns (bool) {
-        if (loan.terms.settlement != address(this)) {
-            revert InvalidHandler();
-        }
+    // @inheritdoc Validation
+    function validate(Starport.Loan calldata loan) external view virtual override returns (bytes4) {
         Details memory details = abi.decode(loan.terms.settlementData, (Details)); // Will revert if this fails
-        return (details.startingPrice > details.endingPrice);
+        return (details.startingPrice > details.endingPrice) ? Validation.validate.selector : bytes4(0xFFFFFFFF);
     }
 }

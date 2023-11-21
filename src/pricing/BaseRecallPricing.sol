@@ -13,6 +13,7 @@ import {SpentItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 
 abstract contract BaseRecallPricing is BasePricing {
+    // @inheritdoc Pricing
     function getRefinanceConsideration(Starport.Loan calldata loan, bytes memory newPricingData, address fulfiller)
         external
         view
@@ -28,7 +29,6 @@ abstract contract BaseRecallPricing is BasePricing {
         Details memory newDetails = abi.decode(newPricingData, (Details));
         bool isRecalled = BaseStatus(loan.terms.status).isRecalled(loan);
 
-        //todo: figure out the proper flow for here
         if ((isRecalled && newDetails.rate >= oldDetails.rate) || (newDetails.rate < oldDetails.rate)) {
             (repayConsideration, carryConsideration) = getPaymentConsideration(loan);
             recallConsideration = new AdditionalTransfer[](0);

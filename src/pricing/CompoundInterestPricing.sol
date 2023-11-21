@@ -9,6 +9,7 @@ import {BaseRecallPricing} from "v1-core/pricing/BaseRecallPricing.sol";
 import {AstariaV1Lib} from "v1-core/lib/AstariaV1Lib.sol";
 
 abstract contract CompoundInterestPricing is BaseRecallPricing {
+    // @inheritdoc BasePricing
     function calculateInterest(uint256 delta_t, uint256 amount, uint256 rate, uint256 decimals)
         public
         pure

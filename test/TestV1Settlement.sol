@@ -12,14 +12,56 @@ import {StarportLib, Actions} from "starport-core/lib/StarportLib.sol";
 import {DeepEq} from "starport-test/utils/DeepEq.sol";
 import {SpentItemLib} from "seaport-sol/src/lib/SpentItemLib.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
+import {Validation} from "starport-core/lib/Validation.sol";
 
 contract TestAstariaV1Settlement is AstariaV1Test, DeepEq {
     using Cast for *;
     using FixedPointMathLib for uint256;
 
     using {StarportLib.getId} for Starport.Loan;
-    // Recaller is not the lender, liquidation amount is a dutch auction
 
+    function testGetSettlementConsiderationNoRecallRate() public {
+        BaseRecall.Details memory details = abi.decode(defaultStatusData, (BaseRecall.Details));
+        defaultStatusData = abi.encode(
+            BaseRecall.Details({
+                recallWindow: details.recallWindow,
+                honeymoon: details.honeymoon,
+                recallerRewardRatio: 0,
+                recallStakeDuration: details.recallStakeDuration,
+                recallMax: details.recallMax
+            })
+        );
+
+        Starport.Terms memory terms = Starport.Terms({
+            status: address(status),
+            settlement: address(settlement),
+            pricing: address(pricing),
+            pricingData: defaultPricingData,
+            settlementData: defaultSettlementData,
+            statusData: defaultStatusData
+        });
+        Starport.Loan memory loan =
+            _createLoan721Collateral20Debt({lender: lender.addr, borrowAmount: 1e18, terms: terms});
+        uint256 loanId = loan.getId();
+
+        bytes4 recallsSelector = bytes4(keccak256("recalls(uint256)"));
+        vm.mockCall(
+            address(loan.terms.status),
+            abi.encodeWithSelector(recallsSelector, loanId),
+            abi.encode(address(this), uint64(2))
+        );
+        uint256 auctionStart = AstariaV1Settlement(loan.terms.settlement).getAuctionStart(loan);
+        DutchAuctionSettlement.Details memory auctionDetails =
+            abi.decode(loan.terms.settlementData, (DutchAuctionSettlement.Details));
+        vm.warp(auctionStart + auctionDetails.window + 5);
+
+        (ReceivedItem[] memory settlementConsideration, address authorized) =
+            Settlement(loan.terms.settlement).getSettlementConsideration(loan);
+        assertEq(settlementConsideration.length, 0, "Settlement consideration should be empty");
+        assertEq(authorized, address(loan.issuer), "Authorized address should be loan.issuer");
+    }
+
+    // Recaller is not the lender, liquidation amount is a dutch auction
     function testGetSettlementConsiderationFailedDutchAuction() public {
         Starport.Terms memory terms = Starport.Terms({
             status: address(status),
@@ -44,10 +86,32 @@ contract TestAstariaV1Settlement is AstariaV1Test, DeepEq {
             abi.decode(loan.terms.settlementData, (DutchAuctionSettlement.Details));
 
         vm.warp(auctionStart + details.window + 5);
-        (ReceivedItem[] memory settlementConsideration, address restricted) =
+        (ReceivedItem[] memory settlementConsideration, address authorized) =
             Settlement(loan.terms.settlement).getSettlementConsideration(loan);
         assertEq(settlementConsideration.length, 0, "Settlement consideration should be empty");
-        assertEq(restricted, address(loan.issuer), "Restricted address should be loan.issuer");
+        assertEq(authorized, address(loan.issuer), "Authorized address should be loan.issuer");
+    }
+
+    function testGetSettlementConsiderationLoanRecalledByLender() public {
+        Starport.Terms memory terms = Starport.Terms({
+            status: address(status),
+            settlement: address(settlement),
+            pricing: address(pricing),
+            pricingData: defaultPricingData,
+            settlementData: defaultSettlementData,
+            statusData: defaultStatusData
+        });
+        Starport.Loan memory loan =
+            _createLoan721Collateral20Debt({lender: lender.addr, borrowAmount: 1e18, terms: terms});
+
+        skip(abi.decode(defaultStatusData, (BaseRecall.Details)).honeymoon);
+        vm.prank(loan.issuer);
+        BaseRecall(terms.status).recall(loan);
+
+        (ReceivedItem[] memory settlementConsideration, address authorized) =
+            Settlement(loan.terms.settlement).getSettlementConsideration(loan);
+        assertEq(settlementConsideration.length, 0, "Settlement consideration should be empty");
+        assertEq(authorized, address(loan.issuer), "Authorized address should be loan.issuer");
     }
 
     function testGetSettlementConsiderationLoanNotRecalled() public {
@@ -111,7 +175,7 @@ contract TestAstariaV1Settlement is AstariaV1Test, DeepEq {
             loan, pricingDetails.rate, loan.start, block.timestamp, 0, pricingDetails.decimals
         );
         uint256 carry = interest.mulWad(pricingDetails.carryRate);
-        (ReceivedItem[] memory settlementConsideration, address restricted) =
+        (ReceivedItem[] memory settlementConsideration, address authorized) =
             Settlement(loan.terms.settlement).getSettlementConsideration(loan);
         BaseRecall.Details memory hookDetails = abi.decode(loan.terms.statusData, (BaseRecall.Details));
 
@@ -127,7 +191,7 @@ contract TestAstariaV1Settlement is AstariaV1Test, DeepEq {
             "Settlement 2 (issuer payment) incorrect"
         );
         assertEq(settlementConsideration.length, 3, "Settlement consideration should have 3 elements");
-        assertEq(restricted, address(0), "Restricted address should be address(0)");
+        assertEq(authorized, address(0), "Authorized address should be address(0)");
     }
 
     function testGetAuctionStartNotStarted() public {
@@ -234,24 +298,21 @@ contract TestAstariaV1Settlement is AstariaV1Test, DeepEq {
         Starport.Loan memory loan =
             _createLoan721Collateral20Debt({lender: lender.addr, borrowAmount: 1e18, terms: terms});
 
-        assert(AstariaV1Settlement(loan.terms.settlement).validate(loan));
+        assertEq(AstariaV1Settlement(loan.terms.settlement).validate(loan), Validation.validate.selector);
     }
 
-    function testV1SettlementHandlerValidateInvalidHandler() public {
-        Starport.Terms memory terms = Starport.Terms({
-            status: address(status),
-            settlement: address(settlement),
-            pricing: address(pricing),
-            pricingData: defaultPricingData,
-            settlementData: defaultSettlementData,
-            statusData: defaultStatusData
-        });
-        Starport.Loan memory loan =
-            _createLoan721Collateral20Debt({lender: lender.addr, borrowAmount: 1e18, terms: terms});
+    function testV1SettlementValidateValid() public {
+        Starport.Loan memory loan = generateDefaultLoanTerms();
+        assert(Validation(loan.terms.settlement).validate(loan) == Validation.validate.selector);
+    }
 
-        address settlement = loan.terms.settlement;
-        loan.terms.settlement = address(0);
-        vm.expectRevert(abi.encodeWithSelector(AstariaV1Settlement.InvalidHandler.selector));
-        AstariaV1Settlement(settlement).validate(loan);
+    function testV1SettlementValidateInvalid() public {
+        Starport.Loan memory loan = generateDefaultLoanTerms();
+        DutchAuctionSettlement.Details memory details =
+            abi.decode(loan.terms.settlementData, (DutchAuctionSettlement.Details));
+        details.endingPrice = 10;
+        details.startingPrice = 1;
+        loan.terms.settlementData = abi.encode(details);
+        assert(Validation(loan.terms.settlement).validate(loan) == bytes4(0xFFFFFFFF));
     }
 }

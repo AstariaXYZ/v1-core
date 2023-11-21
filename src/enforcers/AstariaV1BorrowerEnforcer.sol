@@ -16,14 +16,18 @@ contract AstariaV1BorrowerEnforcer is BorrowerEnforcer {
     error DebtBundlesNotSupported();
 
     struct V1BorrowerDetails {
-        uint256 startTime;
-        uint256 endTime;
+        uint256 startBlock;
+        uint256 endBlock;
         uint256 startRate;
         uint256 maxAmount;
         uint256 minAmount;
         BorrowerEnforcer.Details details;
     }
 
+    /// @notice Validates a loan against a caveat, w/ an inclining rate auction, and a min/max amount
+    /// @dev Bundle support is not implemented, and will revert
+    /// @dev The rate in pricing is the endRate.
+    /// @dev Only viable for use w/ AstariaV1Pricing and AstariaV1Status modules
     function validate(
         AdditionalTransfer[] calldata additionalTransfers,
         Starport.Loan calldata loan,
@@ -67,32 +71,38 @@ contract AstariaV1BorrowerEnforcer is BorrowerEnforcer {
         _validate(additionalTransfers, loan, v1Details.details);
     }
 
+    /// @notice Calculates the current maximum valid rate of a caveat
+    function locateCurrentRate(bytes calldata caveatData) external view returns (uint256 currentRate) {
+        V1BorrowerDetails memory v1Details = abi.decode(caveatData, (V1BorrowerDetails));
+        return _locateCurrentRate(v1Details);
+    }
+
     function _locateCurrentRate(V1BorrowerDetails memory v1Details) internal view returns (uint256 currentRate) {
         uint256 endRate = AstariaV1Lib.getBasePricingRate(v1Details.details.loan.terms.pricingData);
 
-        // if endRate == startRate, or startTime == endTime, or block.timestamp > endTime
+        // if endRate == startRate, or startBlock == endBlock, or block.number > endBlock
         if (
-            endRate == v1Details.startRate || v1Details.startTime == v1Details.endTime
-                || block.timestamp > v1Details.endTime
+            endRate == v1Details.startRate || v1Details.startBlock == v1Details.endBlock
+                || block.number > v1Details.endBlock
         ) {
             return endRate;
         }
 
-        // Will revert if startTime > endTime
-        uint256 duration = v1Details.endTime - v1Details.startTime;
+        // Will revert if startBlock > endBlock
+        uint256 duration = v1Details.endBlock - v1Details.startBlock;
         uint256 elapsed;
         uint256 remaining;
         unchecked {
-            // block.timestamp <= endTime && startTime < endTime, can't overflow
-            elapsed = block.timestamp - v1Details.startTime;
-            // block.timestamp <= endTime, can't underflow
+            // block.number <= endBlock && startBlock < endBlock, can't overflow
+            elapsed = block.number - v1Details.startBlock;
+            // block.number <= endBlock, can't underflow
             remaining = duration - elapsed;
         }
 
         // Calculate rate with a linear growth
         // Weight startRate by the remaining time, and endRate by the elapsed time
         uint256 totalBeforeDivision = (v1Details.startRate * remaining) + (endRate * elapsed);
-        assembly {
+        assembly ("memory-safe") {
             currentRate := div(totalBeforeDivision, duration)
         }
     }

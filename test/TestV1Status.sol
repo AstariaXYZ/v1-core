@@ -12,6 +12,7 @@ import {StarportLib, Actions} from "starport-core/lib/StarportLib.sol";
 import {DeepEq} from "starport-test/utils/DeepEq.sol";
 import {SpentItemLib} from "seaport-sol/src/lib/SpentItemLib.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
+import {Validation} from "starport-core/lib/Validation.sol";
 
 contract TestAstariaV1Status is AstariaV1Test, DeepEq {
     using Cast for *;
@@ -314,6 +315,25 @@ contract TestAstariaV1Status is AstariaV1Test, DeepEq {
         vm.expectRevert(abi.encodeWithSelector(BaseRecall.LoanHasNotBeenRefinanced.selector));
         AstariaV1Status(loan.terms.status).withdraw(loan, payable(address(this)));
     }
+
+    function testV1StatusValidateValid() public {
+        Starport.Loan memory loan = generateDefaultLoanTerms();
+        assert(Validation(loan.terms.status).validate(loan) == Validation.validate.selector);
+    }
+
+    function testV1StatusValidateInValid() public {
+        Starport.Loan memory loan = generateDefaultLoanTerms();
+        bytes memory defaultDetailsData = loan.terms.statusData;
+        BaseRecall.Details memory details = abi.decode(loan.terms.statusData, (BaseRecall.Details));
+        details.recallerRewardRatio = 10 ** 19;
+        loan.terms.statusData = abi.encode(details);
+        assert(Validation(loan.terms.status).validate(loan) == bytes4(0xFFFFFFFF));
+        details = abi.decode(defaultDetailsData, (BaseRecall.Details));
+        details.recallMax = 1000 ** 19;
+        loan.terms.statusData = abi.encode(details);
+        assert(Validation(loan.terms.status).validate(loan) == bytes4(0xFFFFFFFF));
+    }
+
     //    //TODO: this needs to be done because withdraw is being looked at
     //    function testRecallWithdraw() public {
     //        Starport.Terms memory terms = Starport.Terms({
