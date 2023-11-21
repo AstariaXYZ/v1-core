@@ -22,7 +22,6 @@ import {AstariaV1Lib} from "v1-core/lib/AstariaV1Lib.sol";
 import {SpentItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
 
 contract AstariaV1LenderEnforcer is LenderEnforcer {
-
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                       CUSTOM ERRORS                        */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/

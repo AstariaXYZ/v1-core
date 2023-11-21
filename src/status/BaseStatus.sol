@@ -16,7 +16,6 @@ import {Starport} from "starport-core/Starport.sol";
 import {Status} from "starport-core/status/Status.sol";
 
 abstract contract BaseStatus is Status {
-
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                     EXTERNAL FUNCTIONS                     */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/

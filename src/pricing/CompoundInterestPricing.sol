@@ -18,7 +18,6 @@ import {BaseRecallPricing} from "v1-core/pricing/BaseRecallPricing.sol";
 import {AstariaV1Lib} from "v1-core/lib/AstariaV1Lib.sol";
 
 abstract contract CompoundInterestPricing is BaseRecallPricing {
-
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                     PUBLIC FUNCTIONS                       */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/

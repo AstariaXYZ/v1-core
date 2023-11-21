@@ -94,7 +94,6 @@ contract AstariaV1Settlement is DutchAuctionSettlement {
         return start + recallWindow + 1;
     }
 
-
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                     EXTERNAL FUNCTIONS                     */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
@@ -112,7 +111,7 @@ contract AstariaV1Settlement is DutchAuctionSettlement {
 
         return Settlement.postRepayment.selector;
     }
-    
+
     // @inheritdoc Validation
     function validate(Starport.Loan calldata loan) external view virtual override returns (bytes4) {
         Details memory details = abi.decode(loan.terms.settlementData, (Details)); // Will revert if this fails
@@ -231,5 +230,4 @@ contract AstariaV1Settlement is DutchAuctionSettlement {
     function _executeWithdraw(Starport.Loan calldata loan, address fulfiller) internal {
         loan.terms.status.call(abi.encodeWithSelector(BaseRecall.withdraw.selector, loan, fulfiller));
     }
-
 }

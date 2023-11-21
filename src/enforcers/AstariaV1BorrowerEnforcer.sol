@@ -20,7 +20,6 @@ import {AdditionalTransfer} from "starport-core/lib/StarportLib.sol";
 import {AstariaV1Lib} from "v1-core/lib/AstariaV1Lib.sol";
 
 contract AstariaV1BorrowerEnforcer is BorrowerEnforcer {
-
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                       CUSTOM ERRORS                        */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
@@ -28,7 +27,6 @@ contract AstariaV1BorrowerEnforcer is BorrowerEnforcer {
     error DebtBundlesNotSupported();
     error LoanAmountOutOfBounds();
     error LoanRateExceedsCurrentRate();
-
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                          STRUCTS                           */
