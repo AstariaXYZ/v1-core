@@ -1,5 +1,14 @@
-// SPDX-License-Identifier: BUSL-1.1
-// Copyright (c) 2023 Astaria Labs
+//  SPDX-License-Identifier: BUSL-1.1
+//   █████╗ ███████╗████████╗ █████╗ ██████╗ ██╗ █████╗     ██╗   ██╗ ██╗
+//  ██╔══██╗██╔════╝╚══██╔══╝██╔══██╗██╔══██╗██║██╔══██╗    ██║   ██║███║
+//  ███████║███████╗   ██║   ███████║██████╔╝██║███████║    ██║   ██║╚██║
+//  ██╔══██║╚════██║   ██║   ██╔══██║██╔══██╗██║██╔══██║    ╚██╗ ██╔╝ ██║
+//  ██║  ██║███████║   ██║   ██║  ██║██║  ██║██║██║  ██║     ╚████╔╝  ██║
+//  ╚═╝  ╚═╝╚══════╝   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝╚═╝  ╚═╝      ╚═══╝   ╚═╝
+//
+//  Astaria v1 Lending
+//  Built on Starport https://github.com/astariaXYZ/starport
+//  Designed with love by Astaria Labs, Inc
 
 pragma solidity ^0.8.17;
 
@@ -13,16 +22,33 @@ import {AstariaV1Lib} from "v1-core/lib/AstariaV1Lib.sol";
 import {SpentItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
 
 contract AstariaV1LenderEnforcer is LenderEnforcer {
-    uint256 constant MAX_DURATION = uint256(3 * 365 * 1 days); // 3 years
+
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                       CUSTOM ERRORS                        */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     error LoanAmountExceedsCaveatAmount();
     error LoanRateLessThanCaveatRate();
     error DebtBundlesNotSupported();
 
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                  CONSTANTS AND IMMUTABLES                  */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
+    uint256 constant MAX_DURATION = uint256(3 * 365 * 1 days); // 3 years
+
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                          STRUCTS                           */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
     struct V1LenderDetails {
         bool matchIdentifier;
         LenderEnforcer.Details details;
     }
+
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                     PUBLIC FUNCTIONS                       */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     /// @notice Validates a loan against a caveat, w/ a minimum rate and a maximum amount
     /// @dev Bundle support is not implemented, and will revert

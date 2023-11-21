@@ -1,5 +1,14 @@
-// SPDX-License-Identifier: BUSL-1.1
-// Copyright (c) 2023 Astaria Labs
+//  SPDX-License-Identifier: BUSL-1.1
+//   █████╗ ███████╗████████╗ █████╗ ██████╗ ██╗ █████╗     ██╗   ██╗ ██╗
+//  ██╔══██╗██╔════╝╚══██╔══╝██╔══██╗██╔══██╗██║██╔══██╗    ██║   ██║███║
+//  ███████║███████╗   ██║   ███████║██████╔╝██║███████║    ██║   ██║╚██║
+//  ██╔══██║╚════██║   ██║   ██╔══██║██╔══██╗██║██╔══██║    ╚██╗ ██╔╝ ██║
+//  ██║  ██║███████║   ██║   ██║  ██║██║  ██║██║██║  ██║     ╚████╔╝  ██║
+//  ╚═╝  ╚═╝╚══════╝   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝╚═╝  ╚═╝      ╚═══╝   ╚═╝
+//
+//  Astaria v1 Lending
+//  Built on Starport https://github.com/astariaXYZ/starport
+//  Designed with love by Astaria Labs, Inc
 
 pragma solidity ^0.8.17;
 
@@ -14,7 +23,15 @@ import {BaseStatus} from "v1-core/status/BaseStatus.sol";
 contract AstariaV1Status is BaseStatus, BaseRecall {
     using {StarportLib.getId} for Starport.Loan;
 
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                        CONSTRUCTOR                         */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
     constructor(Starport SP_) BaseRecall(SP_) {}
+
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                     EXTERNAL FUNCTIONS                     */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     // @inheritdoc Status
     function isActive(Starport.Loan calldata loan, bytes calldata) external view override returns (bool) {

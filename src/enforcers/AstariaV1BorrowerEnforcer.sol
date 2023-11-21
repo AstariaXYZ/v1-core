@@ -1,5 +1,14 @@
-// SPDX-License-Identifier: BUSL-1.1
-// Copyright (c) 2023 Astaria Labs
+//  SPDX-License-Identifier: BUSL-1.1
+//   █████╗ ███████╗████████╗ █████╗ ██████╗ ██╗ █████╗     ██╗   ██╗ ██╗
+//  ██╔══██╗██╔════╝╚══██╔══╝██╔══██╗██╔══██╗██║██╔══██╗    ██║   ██║███║
+//  ███████║███████╗   ██║   ███████║██████╔╝██║███████║    ██║   ██║╚██║
+//  ██╔══██║╚════██║   ██║   ██╔══██║██╔══██╗██║██╔══██║    ╚██╗ ██╔╝ ██║
+//  ██║  ██║███████║   ██║   ██║  ██║██║  ██║██║██║  ██║     ╚████╔╝  ██║
+//  ╚═╝  ╚═╝╚══════╝   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝╚═╝  ╚═╝      ╚═══╝   ╚═╝
+//
+//  Astaria v1 Lending
+//  Built on Starport https://github.com/astariaXYZ/starport
+//  Designed with love by Astaria Labs, Inc
 
 pragma solidity ^0.8.17;
 
@@ -11,9 +20,19 @@ import {AdditionalTransfer} from "starport-core/lib/StarportLib.sol";
 import {AstariaV1Lib} from "v1-core/lib/AstariaV1Lib.sol";
 
 contract AstariaV1BorrowerEnforcer is BorrowerEnforcer {
-    error LoanRateExceedsCurrentRate();
-    error LoanAmountOutOfBounds();
+
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                       CUSTOM ERRORS                        */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
     error DebtBundlesNotSupported();
+    error LoanAmountOutOfBounds();
+    error LoanRateExceedsCurrentRate();
+
+
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                          STRUCTS                           */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     struct V1BorrowerDetails {
         uint256 startBlock;
@@ -23,6 +42,20 @@ contract AstariaV1BorrowerEnforcer is BorrowerEnforcer {
         uint256 minAmount;
         BorrowerEnforcer.Details details;
     }
+
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                     EXTERNAL FUNCTIONS                     */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
+    /// @notice Calculates the current maximum valid rate of a caveat
+    function locateCurrentRate(bytes calldata caveatData) external view returns (uint256 currentRate) {
+        V1BorrowerDetails memory v1Details = abi.decode(caveatData, (V1BorrowerDetails));
+        return _locateCurrentRate(v1Details);
+    }
+
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                     PUBLIC FUNCTIONS                       */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     /// @notice Validates a loan against a caveat, w/ an inclining rate auction, and a min/max amount
     /// @dev Bundle support is not implemented, and will revert
@@ -71,11 +104,9 @@ contract AstariaV1BorrowerEnforcer is BorrowerEnforcer {
         _validate(additionalTransfers, loan, v1Details.details);
     }
 
-    /// @notice Calculates the current maximum valid rate of a caveat
-    function locateCurrentRate(bytes calldata caveatData) external view returns (uint256 currentRate) {
-        V1BorrowerDetails memory v1Details = abi.decode(caveatData, (V1BorrowerDetails));
-        return _locateCurrentRate(v1Details);
-    }
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                    INTERNAL FUNCTIONS                      */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     function _locateCurrentRate(V1BorrowerDetails memory v1Details) internal view returns (uint256 currentRate) {
         uint256 endRate = AstariaV1Lib.getBasePricingRate(v1Details.details.loan.terms.pricingData);

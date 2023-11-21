@@ -1,5 +1,14 @@
-// SPDX-License-Identifier: BUSL-1.1
-// Copyright (c) 2023 Astaria Labs
+//  SPDX-License-Identifier: BUSL-1.1
+//   █████╗ ███████╗████████╗ █████╗ ██████╗ ██╗ █████╗     ██╗   ██╗ ██╗
+//  ██╔══██╗██╔════╝╚══██╔══╝██╔══██╗██╔══██╗██║██╔══██╗    ██║   ██║███║
+//  ███████║███████╗   ██║   ███████║██████╔╝██║███████║    ██║   ██║╚██║
+//  ██╔══██║╚════██║   ██║   ██╔══██║██╔══██╗██║██╔══██║    ╚██╗ ██╔╝ ██║
+//  ██║  ██║███████║   ██║   ██║  ██║██║  ██║██║██║  ██║     ╚████╔╝  ██║
+//  ╚═╝  ╚═╝╚══════╝   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝╚═╝  ╚═╝      ╚═══╝   ╚═╝
+//
+//  Astaria v1 Lending
+//  Built on Starport https://github.com/astariaXYZ/starport
+//  Designed with love by Astaria Labs, Inc
 
 pragma solidity ^0.8.17;
 
@@ -13,6 +22,11 @@ import {SpentItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 
 abstract contract BaseRecallPricing is BasePricing {
+
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                     EXTERNAL FUNCTIONS                     */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
     // @inheritdoc Pricing
     function getRefinanceConsideration(Starport.Loan calldata loan, bytes memory newPricingData, address fulfiller)
         external

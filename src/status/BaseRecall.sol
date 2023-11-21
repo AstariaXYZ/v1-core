@@ -1,5 +1,14 @@
-// SPDX-License-Identifier: BUSL-1.1
-// Copyright (c) 2023 Astaria Labs
+//  SPDX-License-Identifier: BUSL-1.1
+//   █████╗ ███████╗████████╗ █████╗ ██████╗ ██╗ █████╗     ██╗   ██╗ ██╗
+//  ██╔══██╗██╔════╝╚══██╔══╝██╔══██╗██╔══██╗██║██╔══██╗    ██║   ██║███║
+//  ███████║███████╗   ██║   ███████║██████╔╝██║███████║    ██║   ██║╚██║
+//  ██╔══██║╚════██║   ██║   ██╔══██║██╔══██╗██║██╔══██║    ╚██╗ ██╔╝ ██║
+//  ██║  ██║███████║   ██║   ██║  ██║██║  ██║██║██║  ██║     ╚████╔╝  ██║
+//  ╚═╝  ╚═╝╚══════╝   ╚═╝   ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝╚═╝  ╚═╝      ╚═══╝   ╚═╝
+//
+//  Astaria v1 Lending
+//  Built on Starport https://github.com/astariaXYZ/starport
+//  Designed with love by Astaria Labs, Inc
 
 pragma solidity ^0.8.17;
 
@@ -17,22 +26,42 @@ abstract contract BaseRecall {
     using FixedPointMathLib for uint256;
     using {StarportLib.getId} for Starport.Loan;
 
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                           EVENTS                           */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
     event Recalled(uint256 loandId, address recaller, uint256 end);
     event Withdraw(uint256 loanId, address withdrawer);
 
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                  CONSTANTS AND IMMUTABLES                  */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
     Starport public immutable SP;
 
-    error InvalidWithdraw();
-    error AdditionalTransferError();
-    error InvalidStakeType();
-    error LoanDoesNotExist();
-    error RecallBeforeHoneymoonExpiry();
-    error LoanHasNotBeenRefinanced();
-    error WithdrawDoesNotExist();
-    error InvalidItemType();
-    error RecallAlreadyExists();
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                          STORAGE                           */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     mapping(uint256 => Recall) public recalls;
+
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                       CUSTOM ERRORS                        */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
+    error AdditionalTransferError();
+    error InvalidItemType();
+    error InvalidStakeType();
+    error InvalidWithdraw();
+    error LoanDoesNotExist();
+    error LoanHasNotBeenRefinanced();
+    error RecallAlreadyExists();
+    error RecallBeforeHoneymoonExpiry();
+    error WithdrawDoesNotExist();
+
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                          STRUCTS                           */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     struct Details {
         // Period at the begininng of a loan in which the loan cannot be recalled
@@ -52,9 +81,18 @@ abstract contract BaseRecall {
         uint64 start;
     }
 
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                        CONSTRUCTOR                         */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
     constructor(Starport SP_) {
         SP = SP_;
     }
+
+
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                     EXTERNAL FUNCTIONS                     */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     /**
      * @dev Gets the recall rate for a loan
@@ -138,25 +176,6 @@ abstract contract BaseRecall {
     }
 
     /**
-     * @dev Withdraws the recall stake from the contract
-     * @param transfers The transfers to make
-     */
-    function _withdrawRecallStake(AdditionalTransfer[] memory transfers) internal {
-        uint256 i = 0;
-        for (i; i < transfers.length;) {
-            AdditionalTransfer memory transfer = transfers[i];
-            if (transfer.itemType != ItemType.ERC20) {
-                revert InvalidItemType();
-            }
-            ERC20(transfer.token).transfer(transfer.to, transfer.amount);
-
-            unchecked {
-                ++i;
-            }
-        }
-    }
-
-    /**
      * @dev Generates the consideration for a recall
      * @param loan The loan to generate the consideration for
      * @param proportion The proportion of the recall to generate the consideration for
@@ -211,6 +230,29 @@ abstract contract BaseRecall {
             }
         } else {
             additionalTransfers = new AdditionalTransfer[](0);
+        }
+    }
+
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                    INTERNAL FUNCTIONS                      */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
+    /**
+     * @dev Withdraws the recall stake from the contract
+     * @param transfers The transfers to make
+     */
+    function _withdrawRecallStake(AdditionalTransfer[] memory transfers) internal {
+        uint256 i = 0;
+        for (i; i < transfers.length;) {
+            AdditionalTransfer memory transfer = transfers[i];
+            if (transfer.itemType != ItemType.ERC20) {
+                revert InvalidItemType();
+            }
+            ERC20(transfer.token).transfer(transfer.to, transfer.amount);
+
+            unchecked {
+                ++i;
+            }
         }
     }
 }
