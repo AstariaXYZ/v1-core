@@ -28,7 +28,7 @@ jobs:
         run: forge fmt
 
       - name: Snapshot
-        run: forge snapshot --diff --no-match-test /^testFuzz/g
+        run: forge snapshot --diff --no-match-path *fuzz*
 
       - name: Test
         run: forge test -vvv
