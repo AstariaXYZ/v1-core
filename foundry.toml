@@ -3,9 +3,12 @@ src = "src"
 out = "out"
 libs = ["lib"]
 
+fs_permissions = [{ access = "read-write", path = "./"}]
+
 [profile.default.fuzz]
 include_storage = false
 runs = 10000
+
 
 [fmt]
 line_length = 120
