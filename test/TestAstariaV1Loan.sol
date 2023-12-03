@@ -380,9 +380,7 @@ contract TestAstariaV1Loan is AstariaV1Test {
             // warp past the end of the recall window
             vm.warp(block.timestamp + details.recallWindow + 1);
 
-            OfferItem[] memory repayOffering = new OfferItem[](
-            loan.collateral.length
-          );
+            OfferItem[] memory repayOffering = new OfferItem[](loan.collateral.length);
             uint256 i = 0;
             for (; i < loan.collateral.length;) {
                 repayOffering[i] = OfferItem({
@@ -403,9 +401,7 @@ contract TestAstariaV1Loan is AstariaV1Test {
                 settlementConsideration.length, 0, "Settlement consideration for a recalling Lender should be zero"
             );
             assertEq(restricted, lender.addr, "SettlementConsideration should be restricted to the lender");
-            ConsiderationItem[] memory consider = new ConsiderationItem[](
-            settlementConsideration.length
-          );
+            ConsiderationItem[] memory consider = new ConsiderationItem[](settlementConsideration.length);
             i = 0;
             for (; i < settlementConsideration.length;) {
                 consider[i].token = settlementConsideration[i].token;
@@ -493,9 +489,7 @@ contract TestAstariaV1Loan is AstariaV1Test {
             // warp past the end of the recall window
             vm.warp(block.timestamp + details.recallWindow + 1);
             elapsedTime += (details.recallWindow + 1);
-            OfferItem[] memory repayOffering = new OfferItem[](
-                loan.collateral.length
-            );
+            OfferItem[] memory repayOffering = new OfferItem[](loan.collateral.length);
             uint256 i = 0;
             for (; i < loan.collateral.length;) {
                 repayOffering[i] = OfferItem({
@@ -541,9 +535,7 @@ contract TestAstariaV1Loan is AstariaV1Test {
                     activeLoan, 0, activeLoan.terms.status, address(this)
                 );
             }
-            ConsiderationItem[] memory consider = new ConsiderationItem[](
-                settlementConsideration.length
-            );
+            ConsiderationItem[] memory consider = new ConsiderationItem[](settlementConsideration.length);
             i = 0;
             for (; i < settlementConsideration.length;) {
                 consider[i].token = settlementConsideration[i].token;
