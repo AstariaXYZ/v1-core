@@ -107,7 +107,7 @@ contract TestAstariaV1Status is AstariaV1Test, DeepEq {
         vm.startPrank(newLender);
         erc20s[0].mint(newLender, 10e18);
         erc20s[0].approve(address(SP), 10e18);
-        SP.refinance(newLender, _emptyCaveat(), loan, abi.encode(newPricingData));
+        SP.refinance(newLender, _emptyCaveat(), loan, abi.encode(newPricingData), "");
         assert(erc20s[0].balanceOf(address(loan.terms.status)) == 0);
     }
 
