@@ -345,7 +345,7 @@ contract TestFuzzV1 is AstariaV1Test, TestFuzzStarport {
             vm.startPrank(refiFulfiller);
             erc20s[1].mint(address(refiFulfiller), additionalTransfers[0].amount);
             erc20s[1].approve(address(SP), type(uint256).max);
-            SP.refinance(account.addr, lenderCaveat, goodLoan2, abi.encode(newPricingDetails));
+            SP.refinance(account.addr, lenderCaveat, goodLoan2, abi.encode(newPricingDetails), "");
             vm.stopPrank();
         }
     }

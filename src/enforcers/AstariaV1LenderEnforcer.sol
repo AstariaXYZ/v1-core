@@ -13,7 +13,7 @@
 pragma solidity ^0.8.17;
 
 import {Starport} from "starport-core/Starport.sol";
-import {LenderEnforcer} from "starport-core/enforcers/LenderEnforcer.sol";
+import {LenderEnforcer, CaveatEnforcer} from "starport-core/enforcers/LenderEnforcer.sol";
 import {BasePricing} from "starport-core/pricing/BasePricing.sol";
 import {AdditionalTransfer} from "starport-core/lib/StarportLib.sol";
 
@@ -57,7 +57,7 @@ contract AstariaV1LenderEnforcer is LenderEnforcer {
         AdditionalTransfer[] calldata additionalTransfers,
         Starport.Loan calldata loan,
         bytes calldata caveatData
-    ) public view virtual override {
+    ) public view virtual override returns (bytes4 selector) {
         if (loan.debt.length > 1) {
             revert DebtBundlesNotSupported();
         }
@@ -99,5 +99,6 @@ contract AstariaV1LenderEnforcer is LenderEnforcer {
 
         // Hash and match w/ expected borrower
         _validate(additionalTransfers, loan, v1Details.details);
+        selector = CaveatEnforcer.validate.selector;
     }
 }
