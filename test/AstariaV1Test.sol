@@ -107,8 +107,8 @@ contract AstariaV1Test is StarportTest {
         loan.issuer = address(0);
         AstariaV1BorrowerEnforcer.V1BorrowerDetails memory v1BorrowerDetails = AstariaV1BorrowerEnforcer
             .V1BorrowerDetails({
-            startBlock: block.number,
-            endBlock: block.number,
+            startTime: block.timestamp,
+            endTime: block.timestamp,
             startRate: AstariaV1Lib.getBasePricingRate(loan.terms.pricingData),
             minAmount: loan.debt[0].amount,
             maxAmount: loan.debt[0].amount,
