@@ -121,7 +121,7 @@ abstract contract BaseRecall {
         }
 
         uint256 loanId = loan.getId();
-        if (SP.inactive(loanId)) {
+        if (SP.closed(loanId)) {
             revert LoanDoesNotExist();
         }
 
@@ -149,7 +149,7 @@ abstract contract BaseRecall {
         uint256 loanId = loan.getId();
 
         // Loan has not been refinanced, loan is still active. SP.tokenId changes on refinance
-        if (SP.active(loanId)) {
+        if (SP.open(loanId)) {
             revert LoanHasNotBeenRefinanced();
         }
 

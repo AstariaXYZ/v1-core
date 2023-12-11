@@ -328,7 +328,7 @@ contract TestAstariaV1Loan is AstariaV1Test {
 
             {
                 uint256 loanId = loan.getId();
-                assertTrue(SP.inactive(loanId), "LoanId not properly flipped to inactive after refinance");
+                assertTrue(SP.closed(loanId), "LoanId not properly flipped to inactive after refinance");
             }
         }
         {
