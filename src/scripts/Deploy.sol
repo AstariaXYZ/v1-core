@@ -21,21 +21,20 @@ contract Deploy is Script {
     Account public deployer;
     Account public liquidator;
 
-
     TestERC20 public erc20;
     TestERC721 public erc721;
 
-//    Starport public SP = Starport(address(0x75573d1dff9e2efe784d089f882a5ea320dd96f0));
+    //    Starport public SP = Starport(address(0x75573d1dff9e2efe784d089f882a5ea320dd96f0));
     Starport public SP;
     AstariaV1Pricing public v1Pricing;
     AstariaV1Status public v1Status;
     AstariaV1Settlement public v1Settlement;
 
-//    RacerOriginator public ftOriginator;
-//    RacerPricing public ftPricing;
-//    RacerHandler public fthandler;
-//    RacerMarginHook public ftMarginHook;
-//    RacerHelper public racerHelper;
+    //    RacerOriginator public ftOriginator;
+    //    RacerPricing public ftPricing;
+    //    RacerHandler public fthandler;
+    //    RacerMarginHook public ftMarginHook;
+    //    RacerHelper public racerHelper;
 
     bool forkNet = false;
 
@@ -108,7 +107,6 @@ contract Deploy is Script {
         vm.writeJson(output, "./out/contract-addresses.json");
     }
 
-
     function seedOriginationData() internal {
         uint256 liquidatorKey = vm.envUint("LIQUIDATOR_PRIVATE_KEY");
         liquidator = Account({addr: vm.addr(liquidatorKey), key: liquidatorKey});
@@ -117,18 +115,13 @@ contract Deploy is Script {
 
         //non-liquidatable borrow
 
-        bytes memory pricingDetails = abi.encode(BasePricing.Details({
-            rate: 0.0000001 ether,
-            carryRate: 0.0000001 ether,
-            decimals: 18
-        }));
+        bytes memory pricingDetails =
+            abi.encode(BasePricing.Details({rate: 0.0000001 ether, carryRate: 0.0000001 ether, decimals: 18}));
 
-        borrow(
-            pricingDetails
-        );
+        borrow(pricingDetails);
 
         //liquidatable borrow
-//        borrow(pricingDetails, 0x0, 0x1);
+        //        borrow(pricingDetails, 0x0, 0x1);
     }
 
     struct FundingData {
@@ -143,11 +136,18 @@ contract Deploy is Script {
     }
 
     function borrow(bytes memory pricingData) internal {
+        bytes memory statusData = abi.encode(
+            BaseRecall.Details({
+                honeymoon: 7 days,
+                recallWindow: 7 days,
+                recallStakeDuration: 7 days,
+                recallMax: 10e18,
+                recallerRewardRatio: 0.5 ether
+            })
+        );
 
-
-        bytes memory statusData = abi.encode(BaseRecall.Details({honeymoon: 7 days, recallWindow: 7 days, recallStakeDuration: 7 days, recallMax: 10e18, recallerRewardRatio: 0.5 ether}));
-
-        bytes memory settlementData = abi.encode(DutchAuctionSettlement.Details({startingPrice: 100 ether, endingPrice: 100 wei, window: 7 days}));
+        bytes memory settlementData =
+            abi.encode(DutchAuctionSettlement.Details({startingPrice: 100 ether, endingPrice: 100 wei, window: 7 days}));
 
         Starport.Terms memory terms = Starport.Terms({
             pricing: address(v1Pricing),
@@ -159,12 +159,7 @@ contract Deploy is Script {
         });
 
         SpentItem[] memory collateral = new SpentItem[](1);
-        collateral[0] = SpentItem({
-            itemType: ItemType.ERC721,
-            token: address(erc721),
-            identifier: 1,
-            amount: 1
-        });
+        collateral[0] = SpentItem({itemType: ItemType.ERC721, token: address(erc721), identifier: 1, amount: 1});
 
         //debt
 
@@ -196,7 +191,6 @@ contract Deploy is Script {
 
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(lender.key, hash);
         caveats.signature = abi.encodePacked(r, s, v);
-
 
         // uint256 start; // start of the loan
         //        address custodian; // where the collateral is being held

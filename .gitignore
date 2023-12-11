@@ -18,3 +18,4 @@ out/
 
 # Dotenv file
 .env
+.turbo/
