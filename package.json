@@ -1,7 +1,7 @@
 {
   "name": "@astariaxyz/v1-core",
-  "private": true,
   "version": "1.0.0",
+  "private": true,
   "homepage": "https://astaria.xyz",
   "repository": "https://github.com/AstariaXYZ/v1-core.git",
   "license": "BUSL-1.1",
@@ -10,9 +10,6 @@
   },
   "engines": {
     "node": ">=18.12.2"
-  },
-  "devDependencies": {
-    "husky": "^8.0.0"
   },
   "scripts": {
     "build:bench": "npx hardhat compile && npx hardhat typechain",
@@ -25,5 +22,8 @@
     "fmt": "forge fmt",
     "prepare": "husky install",
     "snapshot": "forge snapshot --diff --no-match-path *fuzz*"
+  },
+  "devDependencies": {
+    "husky": "^8.0.0"
   }
 }
