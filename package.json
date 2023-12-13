@@ -24,6 +24,6 @@
     "snapshot": "forge snapshot --diff --no-match-path *fuzz*"
   },
   "devDependencies": {
-    "husky": "^8.0.0"
+    "husky": "^8.0.3"
   }
 }
