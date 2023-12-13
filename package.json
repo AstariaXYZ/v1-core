@@ -16,7 +16,7 @@
     "bench": "npx hardhat test",
     "build": "git submodule && forge install && forge build",
     "test": "forge test",
-    "deploy": "export IS_FORK=true; forge script Deploy --rpc-url http://localhost:8545 -vvvvv --broadcast",
+    "deploy": "cross-env IS_FORK=true forge script Deploy --rpc-url http://localhost:8545 -vvvvv --broadcast",
     "debug": "forge script script/Debug.sol:Debug --rpc-url http://localhost:8545 -vvvvv --broadcast",
     "coverage": "forge coverage",
     "fmt": "forge fmt",
@@ -24,6 +24,7 @@
     "snapshot": "forge snapshot --diff --no-match-path *fuzz*"
   },
   "devDependencies": {
+    "cross-env": "^7.0.3",
     "husky": "^8.0.3"
   }
 }
