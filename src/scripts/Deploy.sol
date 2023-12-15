@@ -83,10 +83,10 @@ contract Deploy is Script {
         erc721.setApprovalForAll(address(SP), true);
         vm.stopBroadcast();
         vm.startBroadcast(lender.key);
-        erc20.approve(address(SP), 10e18);
+        erc20.approve(address(SP), type(uint256).max);
         vm.stopBroadcast();
 
-//        seedOriginationData();
+        seedOriginationData();
 
         string memory contracts = "contracts";
 
@@ -98,6 +98,7 @@ contract Deploy is Script {
         vm.serializeAddress(contracts, "V1Settlement", address(v1Settlement));
         vm.serializeAddress(contracts, "ERC20Debt", address(erc20));
         vm.serializeAddress(contracts, "ERC721Collateral", address(erc721));
+        vm.serializeAddress(contracts, "ERC1155Collateral", address(erc1155));
         vm.serializeUint(contracts, "block_number", block.number);
         string memory output = vm.serializeAddress(contracts, "V1Status", address(v1Status));
 
@@ -113,7 +114,7 @@ contract Deploy is Script {
         //non-liquidatable borrow
 
         SpentItem[] memory collateral = new SpentItem[](1);
-        collateral[0] = SpentItem({itemType: ItemType.ERC721, token: address(erc721), identifier: 1, amount: 1});
+        collateral[0] = SpentItem({itemType: ItemType.ERC721, token: address(erc721), identifier: block.number, amount: 1});
 
         //debt
 
@@ -137,8 +138,8 @@ contract Deploy is Script {
         );
 
         //liquidatable borrow
-        collateral[0] = SpentItem({itemType: ItemType.ERC721, token: address(erc721), identifier: 2, amount: 1});
-        recall(borrow(
+        collateral[0] = SpentItem({itemType: ItemType.ERC721, token: address(erc721), identifier: uint(block.number) + 1, amount: 1});
+        borrow(
             collateral,
             debt,
             abi.encode(BasePricing.Details({rate: 0.0000001 ether, carryRate: 0.0000001 ether, decimals: 18})),
@@ -152,7 +153,7 @@ contract Deploy is Script {
                 })
             ),
             abi.encode(DutchAuctionSettlement.Details({startingPrice: 100 ether, endingPrice: 100 wei, window: 7 days}))
-        ));
+        );
     }
 
     struct FundingData {
@@ -165,26 +166,6 @@ contract Deploy is Script {
         payable(address(liquidator.addr)).transfer(data.liquidatorFunding);
         vm.stopBroadcast();
     }
-
-    function recall(Starport.Loan memory loan) internal {
-        vm.warp(block.timestamp + 1);
-
-        vm.startBroadcast();
-        try BaseRecall(loan.terms.status).recall(loan) {
-        } catch Error(string memory reason) {
-            loan.start--;
-            BaseRecall(loan.terms.status).recall(loan);
-        } catch (bytes memory reason) {
-            loan.start--;
-            BaseRecall(loan.terms.status).recall(loan);
-        }
-        vm.stopBroadcast();
-    }
-
-    function repay(Starport.Loan memory loan) internal {
-//        BaseRecall(loan.terms.status).repay(loan);
-    }
-
 
     function borrow(SpentItem[] memory collateral, SpentItem[] memory debt, bytes memory pricingData, bytes memory statusData, bytes memory settlementData) internal returns(Starport.Loan memory loan) {
         Starport.Terms memory terms = Starport.Terms({
