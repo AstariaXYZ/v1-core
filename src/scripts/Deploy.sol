@@ -1,9 +1,11 @@
 pragma solidity =0.8.17;
+
 import {Vm} from "forge-std/Vm.sol";
 import {Script, console} from "forge-std/Script.sol";
 import {Starport, Stargate, CaveatEnforcer, AdditionalTransfer} from "starport-core/Starport.sol";
 import {TestERC20, TestERC721, TestERC1155} from "starport-test/StarportTest.sol";
 import {Consideration} from "seaport-core/src/lib/Consideration.sol";
+import {ConduitController} from "seaport-core/src/conduit/ConduitController.sol";
 import {Custodian} from "starport-core/Custodian.sol";
 import {AstariaV1LenderEnforcer} from "src/enforcers/AstariaV1LenderEnforcer.sol";
 import {SpentItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
@@ -14,7 +16,7 @@ import {AstariaV1Settlement, DutchAuctionSettlement} from "src/settlement/Astari
 import {AstariaV1Status, BaseRecall} from "src/status/AstariaV1Status.sol";
 
 contract Deploy is Script {
-    Consideration public constant seaport = Consideration(payable(0x00000000000000ADc04C56Bf30aC9d3c0aAF14dC));
+    Consideration public seaport;
     Account public borrower;
     Account public lender;
     Account public strategist;
@@ -62,6 +64,8 @@ contract Deploy is Script {
             vm.startBroadcast();
         }
 
+        ConduitController conduitController = new ConduitController();
+        seaport = new Consideration(address(conduitController));
         SP = new Starport(address(seaport), Stargate(address(0)));
 
         v1Pricing = new AstariaV1Pricing(SP);
@@ -71,10 +75,6 @@ contract Deploy is Script {
         erc20 = new TestERC20();
         erc721 = new TestERC721();
         erc1155 = new TestERC1155();
-        erc20.mint(address(lender.addr), 10e18);
-        erc721.mint(address(borrower.addr), 1);
-        erc721.mint(address(borrower.addr), 2);
-        erc1155.mint(address(borrower.addr), 1, 10);
         vm.stopBroadcast();
 
         vm.startBroadcast(borrower.key);
@@ -84,14 +84,13 @@ contract Deploy is Script {
         erc20.approve(address(SP), type(uint256).max);
         vm.stopBroadcast();
 
-        seedOriginationData();
+        //        seedOriginationData();
 
         string memory contracts = "contracts";
 
-        vm.serializeAddress(contracts, "Consideration", address(seaport));
+        vm.serializeAddress(contracts, "Seaport", address(seaport));
         vm.serializeAddress(contracts, "Starport", address(SP));
         vm.serializeAddress(contracts, "Custodian", SP.defaultCustodian());
-
         vm.serializeAddress(contracts, "V1Pricing", address(v1Pricing));
         vm.serializeAddress(contracts, "V1Settlement", address(v1Settlement));
         vm.serializeAddress(contracts, "ERC20Debt", address(erc20));
@@ -112,31 +111,37 @@ contract Deploy is Script {
         //non-liquidatable borrow
 
         SpentItem[] memory collateral = new SpentItem[](1);
-        collateral[0] = SpentItem({itemType: ItemType.ERC721, token: address(erc721), identifier: block.number, amount: 1});
+        collateral[0] =
+            SpentItem({itemType: ItemType.ERC721, token: address(erc721), identifier: block.number, amount: 1});
 
         //debt
 
         SpentItem[] memory debt = new SpentItem[](1);
         debt[0] = SpentItem({itemType: ItemType.ERC20, token: address(erc20), identifier: 0, amount: 1 ether});
 
-        borrow(
-        collateral,
-        debt,
-            abi.encode(BasePricing.Details({rate: 0.0000001 ether, carryRate: 0.0000001 ether, decimals: 18})),
-            abi.encode(
-                BaseRecall.Details({
-                    honeymoon: 7 days,
-                    recallWindow: 7 days,
-                    recallStakeDuration: 7 days,
-                    recallMax: 10e18,
-                    recallerRewardRatio: 0.5 ether
-                })
-            ),
-            abi.encode(DutchAuctionSettlement.Details({startingPrice: 100 ether, endingPrice: 100 wei, window: 7 days}))
-        );
+        //        borrow(
+        //            collateral,
+        //            debt,
+        //            abi.encode(BasePricing.Details({rate: 0.0000001 ether, carryRate: 0.0000001 ether, decimals: 18})),
+        //            abi.encode(
+        //                BaseRecall.Details({
+        //                    honeymoon: 7 days,
+        //                    recallWindow: 7 days,
+        //                    recallStakeDuration: 7 days,
+        //                    recallMax: 10e18,
+        //                    recallerRewardRatio: 0.5 ether
+        //                })
+        //            ),
+        //            abi.encode(DutchAuctionSettlement.Details({startingPrice: 100 ether, endingPrice: 100 wei, window: 7 days}))
+        //        );
 
         //liquidatable borrow
-        collateral[0] = SpentItem({itemType: ItemType.ERC721, token: address(erc721), identifier: uint(block.number) + 1, amount: 1});
+        collateral[0] = SpentItem({
+            itemType: ItemType.ERC721,
+            token: address(erc721),
+            identifier: uint256(block.number) + 1,
+            amount: 1
+        });
         borrow(
             collateral,
             debt,
@@ -165,7 +170,13 @@ contract Deploy is Script {
         vm.stopBroadcast();
     }
 
-    function borrow(SpentItem[] memory collateral, SpentItem[] memory debt, bytes memory pricingData, bytes memory statusData, bytes memory settlementData) internal returns(Starport.Loan memory loan) {
+    function borrow(
+        SpentItem[] memory collateral,
+        SpentItem[] memory debt,
+        bytes memory pricingData,
+        bytes memory statusData,
+        bytes memory settlementData
+    ) internal {
         Starport.Terms memory terms = Starport.Terms({
             pricing: address(v1Pricing),
             pricingData: pricingData,
@@ -174,7 +185,6 @@ contract Deploy is Script {
             settlement: address(v1Settlement),
             settlementData: settlementData
         });
-
 
         SpentItem[] memory collateral = new SpentItem[](1);
         collateral[0] = SpentItem({itemType: ItemType.ERC721, token: address(erc721), identifier: 1, amount: 1});
@@ -197,15 +207,10 @@ contract Deploy is Script {
             caveats: new CaveatEnforcer.Caveat[](0),
             signature: ""
         });
-        //function hashCaveatWithSaltAndNonce(
-        //        address account,
-        //        bool singleUse,
-        //        bytes32 salt,
-        //        uint256 deadline,
-        //        CaveatEnforcer.Caveat[] calldata caveats
-        //    )
 
-        bytes32 hash = SP.hashCaveatWithSaltAndNonce(lender.addr, caveats.singleUse, caveats.salt, caveats.deadline, caveats.caveats);
+        bytes32 hash = SP.hashCaveatWithSaltAndNonce(
+            lender.addr, caveats.singleUse, caveats.salt, caveats.deadline, caveats.caveats
+        );
 
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(lender.key, hash);
         caveats.signature = abi.encodePacked(r, s, v);
@@ -218,7 +223,7 @@ contract Deploy is Script {
         //        SpentItem[] collateral; // array of collateral
         //        SpentItem[] debt; // array of debt
         //        Terms terms; //
-        loan = Starport.Loan({
+        Starport.Loan memory loan = Starport.Loan({
             issuer: lender.addr,
             custodian: SP.defaultCustodian(),
             originator: lender.addr,
@@ -229,18 +234,11 @@ contract Deploy is Script {
             start: 0
         });
 
-        vm.recordLogs();
-        vm.broadcast(borrower.key);
+        vm.startBroadcast(borrower.key);
+        erc721.mint(borrower.addr, loan.collateral[0].identifier);
+        erc20.mint(lender.addr, loan.debt[0].amount);
+
         SP.originate(new AdditionalTransfer[](0), caveatsB, caveats, loan);
-
-        Vm.Log[] memory logs = vm.getRecordedLogs();
-
-        bytes32 lienOpenTopic = bytes32(0x57cb72d73c48fadf55428537f6c9efbe080ae111339b0c5af42d9027ed20ba17);
-        for (uint256 i = 0; i < logs.length; i++) {
-            if (logs[i].topics[0] == lienOpenTopic) {
-                (, loan) = abi.decode(logs[i].data, (uint256, Starport.Loan));
-                break;
-            }
-        }
+        vm.stopBroadcast();
     }
 }

@@ -1,4 +1,5 @@
 pragma solidity =0.8.17;
+
 import {LibString} from "solady/src/utils/LibString.sol";
 import {Vm} from "forge-std/Vm.sol";
 import {Script, console} from "forge-std/Script.sol";
@@ -33,8 +34,9 @@ import {
 import {Settlement} from "starport-core/settlement/Settlement.sol";
 import {Pricing} from "starport-core/pricing/Pricing.sol";
 import {Status} from "starport-core/status/Status.sol";
+
 contract ScriptSetup is Script {
-    Consideration public constant seaport = Consideration(payable(0x00000000000000ADc04C56Bf30aC9d3c0aAF14dC));
+    Consideration public seaport;
     Account public borrower;
     Account public lender;
     Account public strategist;
@@ -65,18 +67,62 @@ contract ScriptSetup is Script {
         deployer = Account({addr: accounts[deployerIndex], key: privateKeys[deployerIndex]});
 
         SP = Starport(vm.parseJsonAddress(deployedContracts, ".Starport"));
+        seaport = Consideration(payable(vm.parseJsonAddress(deployedContracts, ".Seaport")));
         v1Pricing = AstariaV1Pricing(vm.parseJsonAddress(deployedContracts, ".V1Pricing"));
         v1Status = AstariaV1Status(vm.parseJsonAddress(deployedContracts, ".V1Status"));
         v1Settlement = AstariaV1Settlement(vm.parseJsonAddress(deployedContracts, ".V1Settlement"));
         erc20 = TestERC20(vm.parseJsonAddress(deployedContracts, ".ERC20Debt"));
         erc721 = TestERC721(vm.parseJsonAddress(deployedContracts, ".ERC721Collateral"));
         erc1155 = TestERC1155(vm.parseJsonAddress(deployedContracts, ".ERC1155Collateral"));
-
     }
 }
 
 contract SeedScript is ScriptSetup {
+    function generate() public {
+        SpentItem[] memory collateral = new SpentItem[](1);
+        collateral[0] =
+            SpentItem({itemType: ItemType.ERC721, token: address(erc721), identifier: block.number, amount: 1});
 
+        //debt
+
+        SpentItem[] memory debt = new SpentItem[](1);
+        debt[0] = SpentItem({itemType: ItemType.ERC20, token: address(erc20), identifier: 0, amount: 10});
+
+        //        _borrow(
+        //            collateral,
+        //            debt,
+        //            abi.encode(BasePricing.Details({rate: 0.0000001 ether, carryRate: 0.0000001 ether, decimals: 18})),
+        //            abi.encode(
+        //                BaseRecall.Details({
+        //                    honeymoon: 7 days,
+        //                    recallWindow: 7 days,
+        //                    recallStakeDuration: 7 days,
+        //                    recallMax: 10e18,
+        //                    recallerRewardRatio: 0.5 ether
+        //                })
+        //            ),
+        //            abi.encode(DutchAuctionSettlement.Details({startingPrice: 100 ether, endingPrice: 100 wei, window: 7 days}))
+        //        );
+
+        //liquidatable borrow
+        collateral[0] =
+            SpentItem({itemType: ItemType.ERC721, token: address(erc721), identifier: block.number - 1, amount: 1});
+        _borrow(
+            collateral,
+            debt,
+            abi.encode(BasePricing.Details({rate: 0.0000001 ether, carryRate: 0.0000001 ether, decimals: 18})),
+            abi.encode(
+                BaseRecall.Details({
+                    honeymoon: 0,
+                    recallWindow: 0,
+                    recallStakeDuration: 0,
+                    recallMax: 10e18,
+                    recallerRewardRatio: 0.1 ether
+                })
+            ),
+            abi.encode(DutchAuctionSettlement.Details({startingPrice: 1 ether, endingPrice: 100 wei, window: 7 days}))
+        );
+    }
 
     function recall(uint256 loanId) public {
         vm.startBroadcast(lender.key);
@@ -84,7 +130,6 @@ contract SeedScript is ScriptSetup {
         BaseRecall(loan.terms.status).recall(loan);
         vm.stopBroadcast();
     }
-
 
     function repay(uint256 loanId) public {
         Starport.Loan memory loan = _fetchLoan(loanId);
@@ -109,61 +154,82 @@ contract SeedScript is ScriptSetup {
             extraData: abi.encode(Custodian.Command(Actions.Repayment, loan, ""))
         });
 
-//        seaport.fulfillAdvancedOrder({
-//            advancedOrder: x,
-//            criteriaResolvers: new CriteriaResolver[](0),
-//            fulfillerConduitKey: bytes32(0),
-//            recipient: address(0)
-//        });
+        vm.startBroadcast(borrower.key);
+        erc20.mint(borrower.addr, 10 ether);
+        erc20.approve(address(seaport), 10 ether);
         seaport.fulfillAdvancedOrder(x, new CriteriaResolver[](0), bytes32(0), address(0));
-
+        vm.stopBroadcast();
     }
 
-    function generate() public {
-        SpentItem[] memory collateral = new SpentItem[](1);
-        collateral[0] = SpentItem({itemType: ItemType.ERC721, token: address(erc721), identifier: block.number, amount: 1});
+    function settle(uint256 loanId) public {
+        Starport.Loan memory activeLoan = _fetchLoan(loanId);
+        Custodian.Command memory command =
+            Custodian.Command({action: Actions.Settlement, loan: activeLoan, extraData: ""});
+        (SpentItem[] memory settlementOffer, ReceivedItem[] memory settlementConsideration) = Custodian(
+            payable(activeLoan.custodian)
+        ).previewOrder(address(seaport), msg.sender, new SpentItem[](0), new SpentItem[](0), abi.encode(command));
+        settlementConsideration = StarportLib.removeZeroAmountItems(settlementConsideration);
+        ConsiderationItem[] memory consider = new ConsiderationItem[](settlementConsideration.length);
+        uint256 i = 0;
+        for (; i < settlementConsideration.length;) {
+            consider[i].token = settlementConsideration[i].token;
+            consider[i].itemType = settlementConsideration[i].itemType;
+            consider[i].identifierOrCriteria = settlementConsideration[i].identifier;
+            consider[i].startAmount = settlementConsideration[i].amount;
+            consider[i].endAmount = settlementConsideration[i].amount;
+            consider[i].recipient = settlementConsideration[i].recipient;
+            unchecked {
+                ++i;
+            }
+        }
+        OfferItem[] memory repayOffering = new OfferItem[](settlementOffer.length);
+        i = 0;
+        for (; i < settlementOffer.length;) {
+            repayOffering[i] = OfferItem({
+                itemType: settlementOffer[i].itemType,
+                token: address(settlementOffer[i].token),
+                identifierOrCriteria: settlementOffer[i].identifier,
+                endAmount: settlementOffer[i].itemType != ItemType.ERC721 ? settlementOffer[i].amount : 1,
+                startAmount: settlementOffer[i].itemType != ItemType.ERC721 ? settlementOffer[i].amount : 1
+            });
+            unchecked {
+                ++i;
+            }
+        }
 
-        //debt
+        OrderParameters memory op = _buildContractOrder(address(activeLoan.custodian), repayOffering, consider);
+        //        op.offer[0].endAmount = 200;
+        AdvancedOrder memory settlementOrder = AdvancedOrder({
+            numerator: 1,
+            denominator: 1,
+            parameters: op,
+            extraData: abi.encode(Custodian.Command(Actions.Settlement, activeLoan, "")),
+            signature: ""
+        });
+        /*
 
-        SpentItem[] memory debt = new SpentItem[](1);
-        debt[0] = SpentItem({itemType: ItemType.ERC20, token: address(erc20), identifier: 0, amount: 10});
+        seaport.fulfillAdvancedOrder({
+            advancedOrder: settlementOrder,
+            criteriaResolvers: new CriteriaResolver[](0),
+            fulfillerConduitKey: bytes32(0),
+            recipient: address(0)
+        });
+        */
 
-        _borrow(
-            collateral,
-            debt,
-            abi.encode(BasePricing.Details({rate: 0.0000001 ether, carryRate: 0.0000001 ether, decimals: 18})),
-            abi.encode(
-                BaseRecall.Details({
-                    honeymoon: 7 days,
-                    recallWindow: 7 days,
-                    recallStakeDuration: 7 days,
-                    recallMax: 10e18,
-                    recallerRewardRatio: 0.5 ether
-                })
-            ),
-            abi.encode(DutchAuctionSettlement.Details({startingPrice: 100 ether, endingPrice: 100 wei, window: 7 days}))
-        );
-
-        //liquidatable borrow
-        collateral[0] = SpentItem({itemType: ItemType.ERC721, token: address(erc721), identifier: block.number - 1, amount: 1});
-        _borrow(
-            collateral,
-            debt,
-            abi.encode(BasePricing.Details({rate: 0.0000001 ether, carryRate: 0.0000001 ether, decimals: 18})),
-            abi.encode(
-                BaseRecall.Details({
-                    honeymoon: 0,
-                    recallWindow: 0,
-                    recallStakeDuration: 0,
-                    recallMax: 10e18,
-                    recallerRewardRatio: 0.1 ether
-                })
-            ),
-            abi.encode(DutchAuctionSettlement.Details({startingPrice: 100 ether, endingPrice: 100 wei, window: 7 days}))
-        );
+        vm.startBroadcast(lender.key);
+        erc20.mint(address(lender.addr), 10 ether);
+        erc20.approve(address(seaport), 10 ether);
+        seaport.fulfillAdvancedOrder(settlementOrder, new CriteriaResolver[](0), bytes32(0), address(0));
+        vm.stopBroadcast();
     }
 
-    function _borrow(SpentItem[] memory collateral, SpentItem[] memory debt, bytes memory pricingData, bytes memory statusData, bytes memory settlementData) internal {
+    function _borrow(
+        SpentItem[] memory collateral,
+        SpentItem[] memory debt,
+        bytes memory pricingData,
+        bytes memory statusData,
+        bytes memory settlementData
+    ) internal {
         Starport.Terms memory terms = Starport.Terms({
             pricing: address(v1Pricing),
             pricingData: pricingData,
@@ -183,13 +249,14 @@ contract SeedScript is ScriptSetup {
             signature: ""
         });
 
-        bytes32 hash = SP.hashCaveatWithSaltAndNonce(lender.addr, caveats.singleUse, caveats.salt, caveats.deadline, caveats.caveats);
+        bytes32 hash = SP.hashCaveatWithSaltAndNonce(
+            lender.addr, caveats.singleUse, caveats.salt, caveats.deadline, caveats.caveats
+        );
 
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(lender.key, hash);
         caveats.signature = abi.encodePacked(r, s, v);
 
-
-       Starport.Loan memory loan = Starport.Loan({
+        Starport.Loan memory loan = Starport.Loan({
             issuer: lender.addr,
             custodian: SP.defaultCustodian(),
             originator: lender.addr,
@@ -208,63 +275,6 @@ contract SeedScript is ScriptSetup {
         vm.stopBroadcast();
     }
 
-
-    function settle(uint256 loanId) public {
-        Starport.Loan memory activeLoan = _fetchLoan(loanId);
-        Custodian.Command memory command = Custodian.Command({action: Actions.Settlement, loan: activeLoan, extraData: ""});
-        (ReceivedItem[] memory settlementConsideration, address authorized) =
-                                Settlement(activeLoan.terms.settlement).getSettlementConsideration(activeLoan);
-        settlementConsideration = StarportLib.removeZeroAmountItems(settlementConsideration);
-        ConsiderationItem[] memory consider = new ConsiderationItem[](settlementConsideration.length);
-        uint256 i = 0;
-        for (; i < settlementConsideration.length;) {
-            consider[i].token = settlementConsideration[i].token;
-            consider[i].itemType = settlementConsideration[i].itemType;
-            consider[i].identifierOrCriteria = settlementConsideration[i].identifier;
-            consider[i].startAmount = settlementConsideration[i].amount;
-            consider[i].endAmount = settlementConsideration[i].amount;
-            consider[i].recipient = settlementConsideration[i].recipient;
-            unchecked {
-                ++i;
-            }
-        }
-        OfferItem[] memory repayOffering = new OfferItem[](activeLoan.collateral.length);
-        i = 0;
-        for (; i < activeLoan.collateral.length;) {
-            repayOffering[i] = OfferItem({
-                itemType: activeLoan.collateral[i].itemType,
-                token: address(activeLoan.collateral[i].token),
-                identifierOrCriteria: activeLoan.collateral[i].identifier,
-                endAmount: activeLoan.collateral[i].itemType != ItemType.ERC721 ? activeLoan.collateral[i].amount : 1,
-                startAmount: activeLoan.collateral[i].itemType != ItemType.ERC721 ? activeLoan.collateral[i].amount : 1
-            });
-            unchecked {
-                ++i;
-            }
-        }
-
-        OrderParameters memory op = _buildContractOrder(address(activeLoan.custodian), repayOffering, consider);
-        AdvancedOrder memory settlementOrder = AdvancedOrder({
-            numerator: 1,
-            denominator: 1,
-            parameters: op,
-            extraData: abi.encode(Custodian.Command(Actions.Settlement, activeLoan, "")),
-            signature: ""
-        });
-/*
-
-        seaport.fulfillAdvancedOrder({
-            advancedOrder: settlementOrder,
-            criteriaResolvers: new CriteriaResolver[](0),
-            fulfillerConduitKey: bytes32(0),
-            recipient: address(0)
-        });
-*/
-
-        seaport.fulfillAdvancedOrder(settlementOrder, new CriteriaResolver[](0), bytes32(0), address(0));
-        vm.stopBroadcast();
-    }
-
     function _fetchLoan(uint256 loanId) internal returns (Starport.Loan memory) {
         string[] memory ffiScript = new string[](3);
         ffiScript[0] = "ts-node";
@@ -277,9 +287,9 @@ contract SeedScript is ScriptSetup {
     }
 
     function _buildContractOrder(address offerer, OfferItem[] memory offer, ConsiderationItem[] memory consider)
-    internal
-    view
-    returns (OrderParameters memory op)
+        internal
+        view
+        returns (OrderParameters memory op)
     {
         op = OrderParameters({
             offerer: offerer,
@@ -303,6 +313,7 @@ contract SeedScript is ScriptSetup {
         }
         return copiedItems;
     }
+
     function _SpentItemToOfferItem(SpentItem memory item) internal pure returns (OfferItem memory) {
         return OfferItem({
             itemType: item.itemType,
@@ -314,9 +325,9 @@ contract SeedScript is ScriptSetup {
     }
 
     function _toConsiderationItems(ReceivedItem[] memory _receivedItems)
-    internal
-    pure
-    returns (ConsiderationItem[] memory)
+        internal
+        pure
+        returns (ConsiderationItem[] memory)
     {
         ConsiderationItem[] memory considerationItems = new ConsiderationItem[](_receivedItems.length);
         for (uint256 i = 0; i < _receivedItems.length; ++i) {

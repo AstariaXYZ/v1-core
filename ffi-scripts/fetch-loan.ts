@@ -595,7 +595,7 @@ query MyQuery {
         return query;
     }
 
-const fetchLoan = async (loanId:string) => {
+const fetchLoan = async (loanId: string) => {
     const query = loanFetchById(loanId);
     const response = await fetch(indexerURL, {
         method: 'POST',
