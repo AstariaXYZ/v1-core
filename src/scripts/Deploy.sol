@@ -25,12 +25,10 @@ contract Deploy is Script {
     TestERC721 public erc721;
     TestERC1155 public erc1155;
 
-    //    Starport public SP = Starport(address(0x75573d1dff9e2efe784d089f882a5ea320dd96f0));
     Starport public SP;
     AstariaV1Pricing public v1Pricing;
     AstariaV1Status public v1Status;
     AstariaV1Settlement public v1Settlement;
-
     bool forkNet = false;
 
     function run() public {
@@ -176,6 +174,15 @@ contract Deploy is Script {
             settlement: address(v1Settlement),
             settlementData: settlementData
         });
+
+
+        SpentItem[] memory collateral = new SpentItem[](1);
+        collateral[0] = SpentItem({itemType: ItemType.ERC721, token: address(erc721), identifier: 1, amount: 1});
+
+        //debt
+
+        SpentItem[] memory debt = new SpentItem[](1);
+        debt[0] = SpentItem({itemType: ItemType.ERC20, token: address(erc20), identifier: 0, amount: 1 ether});
 
         CaveatEnforcer.SignedCaveats memory caveatsB;
         //bool singleUse;
