@@ -157,7 +157,7 @@ contract TestAstariaV1Status is AstariaV1Test, DeepEq {
         AstariaV1Status(loan.terms.status).recall(loan);
         skip(details.recallWindow);
         vm.mockCall(address(SP), abi.encodeWithSelector(SP.open.selector, loan.getId()), abi.encode(false));
-        vm.expectRevert(abi.encodeWithSelector(BaseRecall.InvalidItemType.selector));
+        vm.expectRevert(abi.encodeWithSelector(RecallStake.InvalidItemType.selector));
         AstariaV1Status(loan.terms.status).withdraw(loan, payable(address(this)));
     }
 
@@ -344,6 +344,30 @@ contract TestAstariaV1Status is AstariaV1Test, DeepEq {
     }
 
     //    //TODO: this needs to be done because withdraw is being looked at
+    //    function testRecallWithdraw() public {
+    //        Starport.Terms memory terms = Starport.Terms({
+    //            status: address(hook),
+    //            settlement: address(settlement),
+    //            pricing: address(pricing),
+    //            pricingData: defaultPricingData,
+    //            settlementData: defaultSettlementData,
+    //            statusData: defaultStatusData
+    //        });
+    //        Starport.Loan memory loan =
+    //            _createLoan721Collateral20Debt({lender: lender.addr, borrowAmount: 1e18, terms: terms});
+    //        uint256 loanId = loan.getId();
+    //        BaseRecall.Details memory hookDetails = abi.decode(loan.terms.statusData, (BaseRecall.Details));
+    //
+    //        erc20s[0].mint(address(this), 10e18);
+    //        erc20s[0].approve(loan.terms.status, 10e18);
+    //
+    //        skip(hookDetails.honeymoon);
+    //        AstariaV1Status(loan.terms.status).recall(loan);
+    //
+    //        vm.mockCall(address(SP), abi.encodeWithSelector(SP.inactive.selector, loanId), abi.encode(true));
+    //    }
+    //
+    //TODO: this needs to be done because withdraw is being looked at
     //    function testRecallWithdraw() public {
     //        Starport.Terms memory terms = Starport.Terms({
     //            status: address(hook),

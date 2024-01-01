@@ -21,6 +21,34 @@ import {ItemType} from "seaport-types/src/lib/ConsiderationEnums.sol";
 import {ConsiderationInterface} from "seaport-types/src/interfaces/ConsiderationInterface.sol";
 import {ERC20} from "solady/src/tokens/ERC20.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
+import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
+import {CREATE3} from "solady/src/utils/CREATE3.sol";
+
+contract RecallStake {
+    error EmptyTransfers();
+
+    error InvalidItemType();
+
+    function withdraw(AdditionalTransfer[] memory transfers) external {
+        if (transfers.length == 0) {
+            revert EmptyTransfers();
+        }
+        uint256 i;
+        for (i; i < transfers.length;) {
+            AdditionalTransfer memory transfer = transfers[i];
+            if (transfer.itemType != ItemType.ERC20) {
+                revert InvalidItemType();
+            }
+            SafeTransferLib.safeTransfer(transfer.token, transfer.to, transfer.amount);
+            unchecked {
+                ++i;
+            }
+        }
+        //should never hold eth anyways
+        //but people can always send it here anyways so in that case it goes to the first transfer
+        selfdestruct(payable(transfers[0].to));
+    }
+}
 
 abstract contract BaseRecall {
     using FixedPointMathLib for uint256;
@@ -50,11 +78,11 @@ abstract contract BaseRecall {
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     error AdditionalTransferError();
-    error InvalidItemType();
     error InvalidStakeType();
     error InvalidWithdraw();
     error LoanDoesNotExist();
     error LoanHasNotBeenRefinanced();
+    error RecallStakeDeployFailed();
     error RecallAlreadyExists();
     error RecallBeforeHoneymoonExpiry();
     error WithdrawDoesNotExist();
@@ -130,7 +158,7 @@ abstract contract BaseRecall {
         }
 
         AdditionalTransfer[] memory recallConsideration = _generateRecallConsideration(
-            msg.sender, loan, 0, details.recallStakeDuration, 0, msg.sender, payable(address(this))
+            msg.sender, loan, 0, details.recallStakeDuration, 0, msg.sender, payable(getRecallStakeAddress(loanId))
         );
         if (recallConsideration.length > 0) {
             StarportLib.transferAdditionalTransfers(recallConsideration);
@@ -168,7 +196,7 @@ abstract contract BaseRecall {
             _generateRecallConsideration(recaller, loan, 0, details.recallStakeDuration, 0, address(this), receiver);
 
         if (recallConsideration.length > 0) {
-            _withdrawRecallStake(recallConsideration);
+            _withdrawRecallStake(recallConsideration, loanId);
         }
 
         emit Withdraw(loanId, receiver);
@@ -240,18 +268,22 @@ abstract contract BaseRecall {
      * @dev Withdraws the recall stake from the contract
      * @param transfers The transfers to make
      */
-    function _withdrawRecallStake(AdditionalTransfer[] memory transfers) internal {
-        uint256 i = 0;
-        for (i; i < transfers.length;) {
-            AdditionalTransfer memory transfer = transfers[i];
-            if (transfer.itemType != ItemType.ERC20) {
-                revert InvalidItemType();
-            }
-            ERC20(transfer.token).transfer(transfer.to, transfer.amount);
+    function _withdrawRecallStake(AdditionalTransfer[] memory transfers, uint256 loanId) internal {
+        bytes memory code = type(RecallStake).creationCode;
 
-            unchecked {
-                ++i;
-            }
+        address deployed;
+        assembly {
+            deployed := create2(0, add(code, 0x20), mload(code), loanId)
         }
+        if (deployed == address(0)) {
+            revert RecallStakeDeployFailed();
+        }
+        RecallStake(deployed).withdraw(transfers);
+    }
+
+    function getRecallStakeAddress(uint256 loanId) public returns (address deployed) {
+        bytes memory code = type(RecallStake).creationCode;
+        deployed =
+            address(uint160(uint256(keccak256(abi.encodePacked(bytes1(0xff), address(this), loanId, keccak256(code))))));
     }
 }

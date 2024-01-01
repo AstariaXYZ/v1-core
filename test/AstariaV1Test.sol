@@ -23,7 +23,7 @@ import {AstariaV1LenderEnforcer} from "v1-core/enforcers/AstariaV1LenderEnforcer
 import {AstariaV1Pricing} from "v1-core/pricing/AstariaV1Pricing.sol";
 import {AstariaV1Settlement} from "v1-core/settlement/AstariaV1Settlement.sol";
 import {AstariaV1Status} from "v1-core/status/AstariaV1Status.sol";
-import {BaseRecall} from "v1-core/status/BaseRecall.sol";
+import {BaseRecall, RecallStake} from "v1-core/status/BaseRecall.sol";
 import {AstariaV1Lib} from "v1-core/lib/AstariaV1Lib.sol";
 
 contract AstariaV1Test is StarportTest {

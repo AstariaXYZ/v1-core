@@ -196,18 +196,19 @@ contract TestAstariaV1Loan is AstariaV1Test {
         }
         uint256 stake;
         {
+            BaseRecall recallContract = BaseRecall(address(status));
             uint256 balanceBefore = erc20s[0].balanceOf(recaller.addr);
-            uint256 recallContractBalanceBefore = erc20s[0].balanceOf(address(status));
+            uint256 recallContractBalanceBefore =
+                erc20s[0].balanceOf(recallContract.getRecallStakeAddress(loan.getId()));
             BaseRecall.Details memory details = abi.decode(loan.terms.statusData, (BaseRecall.Details));
             vm.warp(block.timestamp + details.honeymoon);
             vm.startPrank(recaller.addr);
 
-            BaseRecall recallContract = BaseRecall(address(status));
             recallContract.recall(loan);
             vm.stopPrank();
 
             uint256 balanceAfter = erc20s[0].balanceOf(recaller.addr);
-            uint256 recallContractBalanceAfter = erc20s[0].balanceOf(address(status));
+            uint256 recallContractBalanceAfter = erc20s[0].balanceOf(recallContract.getRecallStakeAddress(loan.getId()));
 
             BasePricing.Details memory pricingDetails = abi.decode(loan.terms.pricingData, (BasePricing.Details));
             stake = BasePricing(address(pricing)).calculateInterest(
@@ -459,18 +460,20 @@ contract TestAstariaV1Loan is AstariaV1Test {
         uint256 stake;
         uint256 recallerBalanceBefore = erc20s[0].balanceOf(recaller.addr);
         {
-            uint256 recallContractBalanceBefore = erc20s[0].balanceOf(address(status));
+            BaseRecall recallContract = BaseRecall(address(status));
+
+            uint256 recallContractBalanceBefore =
+                erc20s[0].balanceOf(recallContract.getRecallStakeAddress(loan.getId()));
             BaseRecall.Details memory details = abi.decode(loan.terms.statusData, (BaseRecall.Details));
             vm.warp(block.timestamp + details.honeymoon);
             elapsedTime += details.honeymoon;
             vm.startPrank(recaller.addr);
 
-            BaseRecall recallContract = BaseRecall(address(status));
             recallContract.recall(loan);
             vm.stopPrank();
 
             uint256 balanceAfter = erc20s[0].balanceOf(recaller.addr);
-            uint256 recallContractBalanceAfter = erc20s[0].balanceOf(address(status));
+            uint256 recallContractBalanceAfter = erc20s[0].balanceOf(recallContract.getRecallStakeAddress(loan.getId()));
 
             BasePricing.Details memory pricingDetails = abi.decode(loan.terms.pricingData, (BasePricing.Details));
             stake = BasePricing(address(pricing)).calculateInterest(
