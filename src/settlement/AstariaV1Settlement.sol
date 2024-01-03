@@ -77,8 +77,7 @@ contract AstariaV1Settlement is DutchAuctionSettlement {
         if (start == 0) {
             revert LoanNotRecalled();
         }
-        uint256 recallWindow = abi.decode(loan.terms.statusData, (BaseRecall.Details)).recallWindow;
-        return start + recallWindow + 1;
+        return _getAuctionStart(loan, start);
     }
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
