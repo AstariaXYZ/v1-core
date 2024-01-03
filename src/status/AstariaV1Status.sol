@@ -71,6 +71,7 @@ contract AstariaV1Status is BaseStatus, BaseRecall, Ownable {
         return valid ? Validation.validate.selector : bytes4(0xFFFFFFFF);
     }
 
+    // @inheritdoc BaseRecall
     function validatePricingContract(address pricingContract) internal virtual override {
         if (!isValidPricing[pricingContract]) {
             revert InvalidPricingContract();

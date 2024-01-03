@@ -22,6 +22,7 @@ import {DeepEq} from "starport-test/utils/DeepEq.sol";
 import {SpentItemLib} from "seaport-sol/src/lib/SpentItemLib.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 import {Validation} from "starport-core/lib/Validation.sol";
+import {Ownable} from "solady/src/auth/Ownable.sol";
 
 contract TestAstariaV1Status is AstariaV1Test, DeepEq {
     using Cast for *;
@@ -78,9 +79,6 @@ contract TestAstariaV1Status is AstariaV1Test, DeepEq {
     function testV1StatusRevertInvalidPricing() public {
         AstariaV1Status v1Status = AstariaV1Status(address(status));
         vm.prank(v1Status.owner());
-        address newOwner = address(55);
-        v1Status.transferOwnership(newOwner);
-        vm.prank(newOwner);
         v1Status.setValidPricing(address(pricing), false);
 
         Starport.Terms memory terms = Starport.Terms({
@@ -102,7 +100,28 @@ contract TestAstariaV1Status is AstariaV1Test, DeepEq {
 
         skip(details.honeymoon);
         vm.expectRevert(AstariaV1Status.InvalidPricingContract.selector);
-        AstariaV1Status(address(status)).recall(loan);
+        v1Status.recall(loan);
+    }
+
+    function testSetValidPricing() public {
+        AstariaV1Status v1Status = AstariaV1Status(address(status));
+        vm.startPrank(v1Status.owner());
+        v1Status.setValidPricing(address(0xdead), true);
+        assertTrue(v1Status.isValidPricing(address(0xdead)));
+        v1Status.setValidPricing(address(0xdead), false);
+        assertFalse(v1Status.isValidPricing(address(0xdead)));
+        vm.stopPrank();
+
+        vm.prank(v1Status.owner());
+        v1Status.transferOwnership(address(0xdead));
+        assertEq(v1Status.owner(), address(0xdead));
+
+        vm.prank(address(0xdead));
+        v1Status.setValidPricing(address(0xdead), true);
+        assertTrue(v1Status.isValidPricing(address(0xdead)));
+
+        vm.expectRevert(Ownable.Unauthorized.selector);
+        v1Status.setValidPricing(address(0xdead), true);
     }
 
     function testRecallAndRefinanceInsideWindow() public {
