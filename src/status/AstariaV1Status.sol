@@ -19,15 +19,22 @@ import {Validation} from "starport-core/lib/Validation.sol";
 import {BasePricing} from "starport-core/pricing/BasePricing.sol";
 import {BaseRecall} from "v1-core/status/BaseRecall.sol";
 import {BaseStatus} from "v1-core/status/BaseStatus.sol";
+import {Ownable} from "solady/src/auth/Ownable.sol";
 
-contract AstariaV1Status is BaseStatus, BaseRecall {
+contract AstariaV1Status is BaseStatus, BaseRecall, Ownable {
     using {StarportLib.getId} for Starport.Loan;
+
+    mapping(address => bool) public isValidPricing;
+
+    error InvalidPricingContract();
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                        CONSTRUCTOR                         */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
-    constructor(Starport SP_) BaseRecall(SP_) {}
+    constructor(Starport SP_) BaseRecall(SP_) {
+        _initializeOwner(msg.sender);
+    }
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                     EXTERNAL FUNCTIONS                     */
@@ -58,5 +65,15 @@ contract AstariaV1Status is BaseStatus, BaseRecall {
             valid = false;
         }
         return valid ? Validation.validate.selector : bytes4(0xFFFFFFFF);
+    }
+
+    function validatePricingContract(address pricingContract) internal virtual override {
+        if (!isValidPricing[pricingContract]) {
+            revert InvalidPricingContract();
+        }
+    }
+
+    function setValidPricing(address pricing, bool valid) external onlyOwner {
+        isValidPricing[pricing] = valid;
     }
 }

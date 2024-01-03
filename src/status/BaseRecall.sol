@@ -21,6 +21,7 @@ import {ItemType} from "seaport-types/src/lib/ConsiderationEnums.sol";
 import {ConsiderationInterface} from "seaport-types/src/interfaces/ConsiderationInterface.sol";
 import {ERC20} from "solady/src/tokens/ERC20.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
+import {Ownable} from "solady/src/auth/Ownable.sol";
 
 abstract contract BaseRecall {
     using FixedPointMathLib for uint256;
@@ -110,6 +111,14 @@ abstract contract BaseRecall {
     }
 
     /**
+     * @dev Implement to validate the pricing contract.
+     * @dev Malicious pricing contracts can lie about the withdrawable recall amount.
+     * @dev This function should revert if the pricing contract is invalid.
+     * @param pricingContract      The pricing contract to validate
+     */
+    function validatePricingContract(address pricingContract) internal virtual;
+
+    /**
      * @dev Recalls a loan
      * @param loan      The loan to recall
      */
@@ -128,6 +137,8 @@ abstract contract BaseRecall {
         if (recalls[loanId].start > 0) {
             revert RecallAlreadyExists();
         }
+
+        validatePricingContract(loan.terms.pricingContract);
 
         AdditionalTransfer[] memory recallConsideration = _generateRecallConsideration(
             msg.sender, loan, 0, details.recallStakeDuration, 0, msg.sender, payable(address(this))
@@ -153,6 +164,8 @@ abstract contract BaseRecall {
         if (SP.open(loanId)) {
             revert LoanHasNotBeenRefinanced();
         }
+
+        validatePricingContract(loan.terms.pricingContract);
 
         Recall storage recall = recalls[loanId];
         address recaller = recall.recaller;
