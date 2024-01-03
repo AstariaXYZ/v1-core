@@ -75,6 +75,36 @@ contract TestAstariaV1Status is AstariaV1Test, DeepEq {
         assert(AstariaV1Status(loan.terms.status).isRecalled(loan));
     }
 
+    function testV1StatusRevertInvalidPricing() public {
+        AstariaV1Status v1Status = AstariaV1Status(address(status));
+        vm.prank(v1Status.owner());
+        address newOwner = address(55);
+        v1Status.transferOwnership(newOwner);
+        vm.prank(newOwner);
+        v1Status.setValidPricing(address(pricing), false);
+
+        Starport.Terms memory terms = Starport.Terms({
+            status: address(status),
+            settlement: address(settlement),
+            pricing: address(pricing),
+            pricingData: defaultPricingData,
+            settlementData: defaultSettlementData,
+            statusData: defaultStatusData
+        });
+        Starport.Loan memory loan =
+            _createLoan721Collateral20Debt({lender: lender.addr, borrowAmount: 1e18, terms: terms});
+        uint256 loanId = loan.getId();
+
+        BaseRecall.Details memory details = abi.decode(loan.terms.statusData, (BaseRecall.Details));
+
+        erc20s[0].mint(address(this), 10e18);
+        erc20s[0].approve(loan.terms.status, 10e18);
+
+        skip(details.honeymoon);
+        vm.expectRevert(AstariaV1Status.InvalidPricingContract.selector);
+        AstariaV1Status(address(status)).recall(loan);
+    }
+
     function testRecallAndRefinanceInsideWindow() public {
         Starport.Terms memory terms = Starport.Terms({
             status: address(status),

@@ -40,10 +40,10 @@ contract AstariaV1Test is StarportTest {
         vm.label(address(pricing), "V1Pricing");
         settlement = new AstariaV1Settlement(SP);
         vm.label(address(settlement), "V1Settlement");
-        status = new AstariaV1Status(SP);
-        status.setValidPricing(address(pricing), true);
 
+        status = new AstariaV1Status(SP);
         vm.label(address(status), "V1Status");
+        AstariaV1Status(address(status)).setValidPricing(address(pricing), true);
 
         lenderEnforcer = new AstariaV1LenderEnforcer();
         vm.label(address(lenderEnforcer), "V1LenderEnforcer");

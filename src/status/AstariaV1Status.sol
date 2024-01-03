@@ -61,9 +61,13 @@ contract AstariaV1Status is BaseStatus, BaseRecall, Ownable {
         Details memory details = abi.decode(loan.terms.statusData, (Details));
         BasePricing.Details memory pDetails = abi.decode(loan.terms.pricingData, (BasePricing.Details));
         bool valid = true;
-        if (details.recallerRewardRatio > 10 ** pDetails.decimals || details.recallMax > 10 * 10 ** pDetails.decimals) {
+        if (
+            details.recallerRewardRatio > 10 ** pDetails.decimals || details.recallMax > 10 * 10 ** pDetails.decimals
+                || !isValidPricing[loan.terms.pricing]
+        ) {
             valid = false;
         }
+
         return valid ? Validation.validate.selector : bytes4(0xFFFFFFFF);
     }
 

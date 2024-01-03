@@ -138,7 +138,7 @@ abstract contract BaseRecall {
             revert RecallAlreadyExists();
         }
 
-        validatePricingContract(loan.terms.pricingContract);
+        validatePricingContract(loan.terms.pricing);
 
         AdditionalTransfer[] memory recallConsideration = _generateRecallConsideration(
             msg.sender, loan, 0, details.recallStakeDuration, 0, msg.sender, payable(address(this))
@@ -165,7 +165,7 @@ abstract contract BaseRecall {
             revert LoanHasNotBeenRefinanced();
         }
 
-        validatePricingContract(loan.terms.pricingContract);
+        validatePricingContract(loan.terms.pricing);
 
         Recall storage recall = recalls[loanId];
         address recaller = recall.recaller;
