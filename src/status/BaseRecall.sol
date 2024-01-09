@@ -30,7 +30,7 @@ abstract contract BaseRecall {
     /*                           EVENTS                           */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
-    event Recalled(uint256 loandId, address recaller, uint256 end);
+    event Recalled(uint256 loanId, address recaller, uint256 end);
     event Withdraw(uint256 loanId, address withdrawer);
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
