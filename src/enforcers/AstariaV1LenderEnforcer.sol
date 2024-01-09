@@ -68,7 +68,7 @@ contract AstariaV1LenderEnforcer is LenderEnforcer {
         AstariaV1Lib.validateCompoundInterest(
             loanAmount,
             loanRate,
-            AstariaV1Lib.getBaseRecallRecallMax(loanTerms.statusData),
+            AstariaV1Lib.getBaseRecallMax(loanTerms.statusData),
             AstariaV1Lib.getBasePricingDecimals(loanTerms.pricingData)
         );
 
