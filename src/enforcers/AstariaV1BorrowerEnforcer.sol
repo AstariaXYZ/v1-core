@@ -120,19 +120,18 @@ contract AstariaV1BorrowerEnforcer is BorrowerEnforcer {
 
         // Will revert if startTime > endTime
         uint256 duration = v1Details.endTime - v1Details.startTime;
-        uint256 elapsed;
+        uint256 elapsed = block.timestamp - v1Details.startTime;
         uint256 remaining;
-        unchecked {
-            // block.timestamp <= endTime && startTime < endTime, can't overflow
-            elapsed = block.timestamp - v1Details.startTime;
+        assembly ("memory-safe") {
             // block.timestamp <= endTime, can't underflow
-            remaining = duration - elapsed;
+            remaining := sub(duration, elapsed)
         }
 
         // Calculate rate with a linear growth
         // Weight startRate by the remaining time, and endRate by the elapsed time
         uint256 totalBeforeDivision = (v1Details.startRate * remaining) + (endRate * elapsed);
         assembly ("memory-safe") {
+            // duration > 0, as startTime != endTime and endTime - startTime did not underflow
             currentRate := div(totalBeforeDivision, duration)
         }
     }
