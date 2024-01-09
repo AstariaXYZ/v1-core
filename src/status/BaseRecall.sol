@@ -132,12 +132,13 @@ abstract contract BaseRecall {
         AdditionalTransfer[] memory recallConsideration = _generateRecallConsideration(
             msg.sender, loan, 0, details.recallStakeDuration, 0, msg.sender, payable(address(this))
         );
+        recalls[loanId] = Recall(payable(msg.sender), uint64(block.timestamp));
+
+        emit Recalled(loanId, msg.sender, block.timestamp + details.recallWindow);
+
         if (recallConsideration.length > 0) {
             StarportLib.transferAdditionalTransfers(recallConsideration);
         }
-
-        recalls[loanId] = Recall(payable(msg.sender), uint64(block.timestamp));
-        emit Recalled(loanId, msg.sender, block.timestamp + details.recallWindow);
     }
 
     /**
