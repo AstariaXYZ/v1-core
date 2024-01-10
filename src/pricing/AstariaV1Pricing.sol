@@ -99,7 +99,7 @@ contract AstariaV1Pricing is CompoundInterestPricing {
         if (msg.sender == address(this)) {
             uint256 loanRate = abi.decode(loan.terms.pricingData, (BasePricing.Details)).rate;
             uint256 loanAmount = loan.debt[0].amount;
-            uint256 recallMax = AstariaV1Lib.getBaseRecallRecallMax(loan.terms.statusData);
+            uint256 recallMax = AstariaV1Lib.getBaseRecallMax(loan.terms.statusData);
             uint256 decimals = AstariaV1Lib.getBasePricingDecimals(loan.terms.pricingData);
 
             AstariaV1Lib.validateCompoundInterest(loanAmount, loanRate, recallMax, decimals);

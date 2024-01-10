@@ -101,13 +101,10 @@ abstract contract BaseRecall {
      */
     function getRecallRate(Starport.Loan calldata loan) external view returns (uint256) {
         Details memory details = abi.decode(loan.terms.statusData, (Details));
-        BasePricing.Details memory pricingDetails = abi.decode(loan.terms.pricingData, (BasePricing.Details));
         uint256 loanId = loan.getId();
 
         // Calculates the porportion of time elapsed, then multiplies times the max rate
-        uint256 baseAdjustment = 10 ** pricingDetails.decimals;
-        uint256 ratio = (((block.timestamp - recalls[loanId].start) * baseAdjustment) / details.recallWindow);
-        return (details.recallMax * ratio) / baseAdjustment;
+        return details.recallMax * (block.timestamp - recalls[loanId].start) / details.recallWindow;
     }
 
     /**

@@ -90,7 +90,7 @@ library AstariaV1Lib {
         }
     }
 
-    function getBaseRecallRecallMax(bytes memory statusData) internal pure returns (uint256 recallMax) {
+    function getBaseRecallMax(bytes memory statusData) internal pure returns (uint256 recallMax) {
         assembly ("memory-safe") {
             recallMax := mload(add(0x80, statusData))
         }
