@@ -26,10 +26,10 @@ contract AstariaV1LenderEnforcer is LenderEnforcer {
     /*                       CUSTOM ERRORS                        */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
-    error LoanAmountExceedsCaveatAmount();
     error LoanRateLessThanCaveatRate();
     error DebtBundlesNotSupported();
-
+    error DebtAmountOOB(uint256 min, uint256 max, uint256 actual);
+    error MinDebtAmountExceedsMax();
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                  CONSTANTS AND IMMUTABLES                  */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
@@ -42,6 +42,7 @@ contract AstariaV1LenderEnforcer is LenderEnforcer {
 
     struct V1LenderDetails {
         bool matchIdentifier;
+        uint256 minDebtAmount;
         LenderEnforcer.Details details;
     }
 
@@ -76,9 +77,12 @@ contract AstariaV1LenderEnforcer is LenderEnforcer {
         Starport.Loan memory caveatLoan = v1Details.details.loan;
         SpentItem memory caveatDebt = caveatLoan.debt[0];
 
-        if (loanAmount > caveatDebt.amount) {
+        if (v1Details.minDebtAmount > caveatDebt.amount) {
+            revert MinDebtAmountExceedsMax();
+        }
+        if (loanAmount > caveatDebt.amount || loanAmount < v1Details.minDebtAmount) {
             // Debt amount is greater than the max amount or the caveatDebt amount
-            revert LoanAmountExceedsCaveatAmount();
+            revert DebtAmountOOB(v1Details.minDebtAmount, caveatDebt.amount, loanAmount);
         }
 
         bytes memory caveatPricingData = caveatLoan.terms.pricingData;

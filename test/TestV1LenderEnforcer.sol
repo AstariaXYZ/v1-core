@@ -25,19 +25,46 @@ import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 contract TestV1LenderEnforcer is AstariaV1Test, AstariaV1LenderEnforcer {
     function testV1LenderEnforcerAmount() public {
         Starport.Loan memory loan = generateDefaultLoanTerms();
-
+        uint256 max = loan.debt[0].amount;
         AstariaV1LenderEnforcer.V1LenderDetails memory details = AstariaV1LenderEnforcer.V1LenderDetails({
             matchIdentifier: true,
+            minDebtAmount: loan.debt[0].amount / 2,
             details: LenderEnforcer.Details(loanCopy(loan))
         });
 
         // Test excessive amount
         loan.debt[0].amount = details.details.loan.debt[0].amount + 1;
-        vm.expectRevert(LoanAmountExceedsCaveatAmount.selector);
+        vm.expectRevert(abi.encodeWithSelector(DebtAmountOOB.selector, details.minDebtAmount, max, loan.debt[0].amount));
         lenderEnforcer.validate(new AdditionalTransfer[](0), loan, abi.encode(details));
 
-        // Test malleable amount
-        loan.debt[0].amount = details.details.loan.debt[0].amount - 1;
+        // Test insufficient amount
+        loan.debt[0].amount = details.minDebtAmount - 1;
+        vm.expectRevert(abi.encodeWithSelector(DebtAmountOOB.selector, details.minDebtAmount, max, loan.debt[0].amount));
+        lenderEnforcer.validate(new AdditionalTransfer[](0), loan, abi.encode(details));
+
+        // on upper bound match
+        loan.debt[0].amount = details.details.loan.debt[0].amount;
+        lenderEnforcer.validate(new AdditionalTransfer[](0), loan, abi.encode(details));
+
+        // on lower bound match
+        loan.debt[0].amount = details.minDebtAmount;
+        lenderEnforcer.validate(new AdditionalTransfer[](0), loan, abi.encode(details));
+
+        // in between upper and lower bound
+        loan.debt[0].amount = details.minDebtAmount + 5;
+        lenderEnforcer.validate(new AdditionalTransfer[](0), loan, abi.encode(details));
+    }
+
+    function testV1LenderEnforcerMinDebtExceedsMax() public {
+        Starport.Loan memory loan = generateDefaultLoanTerms();
+        AstariaV1LenderEnforcer.V1LenderDetails memory details = AstariaV1LenderEnforcer.V1LenderDetails({
+            matchIdentifier: true,
+            minDebtAmount: loan.debt[0].amount + 1,
+            details: LenderEnforcer.Details(loanCopy(loan))
+        });
+
+        // Test excessive amount
+        vm.expectRevert(MinDebtAmountExceedsMax.selector);
         lenderEnforcer.validate(new AdditionalTransfer[](0), loan, abi.encode(details));
     }
 
@@ -46,6 +73,7 @@ contract TestV1LenderEnforcer is AstariaV1Test, AstariaV1LenderEnforcer {
 
         AstariaV1LenderEnforcer.V1LenderDetails memory details = AstariaV1LenderEnforcer.V1LenderDetails({
             matchIdentifier: true,
+            minDebtAmount: loan.debt[0].amount,
             details: LenderEnforcer.Details(loanCopy(loan))
         });
 
@@ -69,6 +97,7 @@ contract TestV1LenderEnforcer is AstariaV1Test, AstariaV1LenderEnforcer {
 
         AstariaV1LenderEnforcer.V1LenderDetails memory details = AstariaV1LenderEnforcer.V1LenderDetails({
             matchIdentifier: false,
+            minDebtAmount: loan.debt[0].amount,
             details: LenderEnforcer.Details(loanCopy(loan))
         });
         loan.debt[0].identifier += 1;
@@ -93,8 +122,11 @@ contract TestV1LenderEnforcer is AstariaV1Test, AstariaV1LenderEnforcer {
         });
 
         Starport.Loan memory loan = generateDefaultLoanTerms();
-        AstariaV1LenderEnforcer.V1LenderDetails memory details =
-            AstariaV1LenderEnforcer.V1LenderDetails({matchIdentifier: false, details: LenderEnforcer.Details(loan)});
+        AstariaV1LenderEnforcer.V1LenderDetails memory details = AstariaV1LenderEnforcer.V1LenderDetails({
+            matchIdentifier: false,
+            minDebtAmount: loan.debt[0].amount,
+            details: LenderEnforcer.Details(loan)
+        });
 
         vm.expectRevert(LenderEnforcer.InvalidAdditionalTransfer.selector);
         lenderEnforcer.validate(additionalTransfers, loan, abi.encode(details));
@@ -111,7 +143,11 @@ contract TestV1LenderEnforcer is AstariaV1Test, AstariaV1LenderEnforcer {
         debt[1] = _getERC721SpentItem(TestERC721(loan.debt[0].token), loan.debt[0].identifier + 1);
         loan.debt = debt;
 
-        AstariaV1LenderEnforcer.V1LenderDetails({matchIdentifier: false, details: LenderEnforcer.Details(loan)});
+        AstariaV1LenderEnforcer.V1LenderDetails({
+            matchIdentifier: false,
+            minDebtAmount: loan.debt[0].amount,
+            details: LenderEnforcer.Details(loan)
+        });
 
         vm.expectRevert(DebtBundlesNotSupported.selector);
         lenderEnforcer.validate(new AdditionalTransfer[](0), loan, abi.encode(LenderEnforcer.Details({loan: loan})));
