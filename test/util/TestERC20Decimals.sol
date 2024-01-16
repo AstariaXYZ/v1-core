@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Unlicense
 pragma solidity ^0.8.13;
 
-import { ERC20 } from "@rari-capital/solmate/src/tokens/ERC20.sol";
+import {ERC20} from "@rari-capital/solmate/src/tokens/ERC20.sol";
 
 // Used for minting test ERC20s in our tests
 contract TestERC20Decimals is ERC20 {
@@ -27,11 +27,7 @@ contract TestERC20Decimals is ERC20 {
         return true;
     }
 
-    function transferFrom(
-        address from,
-        address to,
-        uint256 amount
-    ) public override returns (bool ok) {
+    function transferFrom(address from, address to, uint256 amount) public override returns (bool ok) {
         if (blocked) {
             return false;
         }
@@ -53,10 +49,7 @@ contract TestERC20Decimals is ERC20 {
         ok = true;
     }
 
-    function increaseAllowance(
-        address spender,
-        uint256 amount
-    ) external returns (bool) {
+    function increaseAllowance(address spender, uint256 amount) external returns (bool) {
         uint256 current = allowance[msg.sender][spender];
         uint256 remaining = type(uint256).max - current;
         if (amount > remaining) {

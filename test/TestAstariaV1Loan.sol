@@ -153,19 +153,20 @@ contract TestAstariaV1Loan is AstariaV1Test {
             "lender should receive collateral"
         );
     }
+
     function testNewLoanCollateral6DecimalsStakeSplit() public {
         TestERC20Decimals sixDecimals = new TestERC20Decimals("Test20", "TST20", 6);
-        
+
         {
             sixDecimals.mint(recaller.addr, 50e6);
             vm.prank(recaller.addr);
             sixDecimals.approve(address(status), 50e6);
 
-            sixDecimals.mint(lender.addr, 10000e6);
+            sixDecimals.mint(lender.addr, 10_000e6);
             vm.prank(lender.addr);
             sixDecimals.approve(address(SP), 5000e6);
 
-            sixDecimals.mint(refinancer.addr, 10000e6);
+            sixDecimals.mint(refinancer.addr, 10_000e6);
             // vm.prank(refinancer.addr);
             // sixDecimals.approve(address(SP), 1000e6);
         }
@@ -237,7 +238,7 @@ contract TestAstariaV1Loan is AstariaV1Test {
             vm.warp(block.timestamp + (details.recallWindow / 2));
 
             bytes memory pricingData =
-                abi.encode(BasePricing.Details({rate: 1e4 /* 1% */, carryRate: 1e5, decimals: 6}));
+                abi.encode(BasePricing.Details({rate: 1e4, /* 1% */ carryRate: 1e5, decimals: 6}));
             {
                 Starport.Loan memory refinancableLoan = getRefinanceDetails(loan, pricingData, refinancer.addr).loan;
                 CaveatEnforcer.SignedCaveats memory refinancerCaveat =
@@ -263,7 +264,10 @@ contract TestAstariaV1Loan is AstariaV1Test {
 
                 assertEq(
                     sixDecimals.balanceOf(lender.addr),
-                    oldLenderBefore + loan.debt[0].amount + recallBonus + interest.mulDiv((10 ** pricingDetails.decimals) - pricingDetails.carryRate, 10 ** pricingDetails.decimals),
+                    oldLenderBefore + loan.debt[0].amount + recallBonus
+                        + interest.mulDiv(
+                            (10 ** pricingDetails.decimals) - pricingDetails.carryRate, 10 ** pricingDetails.decimals
+                        ),
                     "Payment to old lender calculated incorrectly"
                 );
             }
@@ -277,7 +281,9 @@ contract TestAstariaV1Loan is AstariaV1Test {
                 );
             }
             assertEq(
-                recallerBefore, sixDecimals.balanceOf(recaller.addr), "Recaller stake not paid to lender and fulfiller as expected"
+                recallerBefore,
+                sixDecimals.balanceOf(recaller.addr),
+                "Recaller stake not paid to lender and fulfiller as expected"
             );
 
             {
