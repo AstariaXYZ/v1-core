@@ -86,7 +86,7 @@ contract AstariaV1Pricing is CompoundInterestPricing {
                 // Scenario where the recaller is penalized
                 // Essentially the old lender and the new lender split the stake of the recaller
                 // Split is proportional to the difference in rate
-                proportion = (oldDetails.rate - newDetails.rate).divWad(oldDetails.rate);
+                proportion = (oldDetails.rate - newDetails.rate) * (10 ** newDetails.decimals) / oldDetails.rate;
             }
             recallConsideration = status.generateRecallConsideration(loan, proportion, fulfiller, receiver);
         }

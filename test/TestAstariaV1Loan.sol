@@ -19,6 +19,7 @@ import {BaseRecall} from "v1-core/status/BaseRecall.sol";
 import {AstariaV1Lib} from "v1-core/lib/AstariaV1Lib.sol";
 
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
+import {TestERC20Decimals} from "test/util/TestERC20Decimals.sol";
 
 contract TestAstariaV1Loan is AstariaV1Test {
     using FixedPointMathLib for uint256;
@@ -151,6 +152,165 @@ contract TestAstariaV1Loan is AstariaV1Test {
             lender.addr,
             "lender should receive collateral"
         );
+    }
+
+    function testNewLoanCollateral6DecimalsStakeSplit() public {
+        TestERC20Decimals sixDecimals = new TestERC20Decimals("Test20", "TST20", 6);
+
+        {
+            sixDecimals.mint(recaller.addr, 50e6);
+            vm.prank(recaller.addr);
+            sixDecimals.approve(address(status), 50e6);
+
+            sixDecimals.mint(lender.addr, 10_000e6);
+            vm.prank(lender.addr);
+            sixDecimals.approve(address(SP), 5000e6);
+
+            sixDecimals.mint(refinancer.addr, 10_000e6);
+            // vm.prank(refinancer.addr);
+            // sixDecimals.approve(address(SP), 1000e6);
+        }
+        Starport.Loan memory loan;
+        uint256 stake;
+        {
+            BasePricing.Details memory pricingDetails = abi.decode(defaultPricingData, (BasePricing.Details));
+            pricingDetails.decimals = 6;
+            pricingDetails.carryRate = 1e5; // 10%
+            pricingDetails.rate = 1e5; // 10%
+
+            BaseRecall.Details memory statusDetails = abi.decode(defaultStatusData, (BaseRecall.Details));
+            statusDetails.recallMax = 10e6; // 1000%
+            statusDetails.recallerRewardRatio = 1e5; // 10%
+            SpentItem[] memory debt = new SpentItem[](1);
+            debt[0] = SpentItem({
+                itemType: ItemType.ERC20,
+                token: address(sixDecimals),
+                amount: 5000e6,
+                identifier: 0 // 0 for ERC20
+            });
+            SpentItem[] memory collateral = new SpentItem[](1);
+            collateral[0] = _getERC721SpentItem(erc721s[0]);
+
+            Starport.Loan memory originationDetails = _generateOriginationDetails(collateral, debt, lender.addr);
+            originationDetails.terms = Starport.Terms({
+                status: address(status),
+                settlement: address(settlement),
+                pricing: address(pricing),
+                pricingData: abi.encode(pricingDetails),
+                settlementData: defaultSettlementData,
+                statusData: abi.encode(statusDetails)
+            });
+            loan = newLoan(originationDetails, bytes32(msg.sig), bytes32(msg.sig), fulfiller.addr);
+
+            uint256 balanceBefore = sixDecimals.balanceOf(recaller.addr);
+            uint256 recallContractBalanceBefore = sixDecimals.balanceOf(address(status));
+            BaseRecall.Details memory details = abi.decode(loan.terms.statusData, (BaseRecall.Details));
+            vm.warp(block.timestamp + details.honeymoon);
+            vm.startPrank(recaller.addr);
+
+            BaseRecall recallContract = BaseRecall(address(status));
+            recallContract.recall(loan);
+            vm.stopPrank();
+
+            uint256 balanceAfter = sixDecimals.balanceOf(recaller.addr);
+            uint256 recallContractBalanceAfter = sixDecimals.balanceOf(address(status));
+
+            // BasePricing.Details memory pricingDetails = abi.decode(loan.terms.pricingData, (BasePricing.Details));
+            stake = BasePricing(address(pricing)).calculateInterest(
+                details.recallStakeDuration, loan.debt[0].amount, pricingDetails.rate, pricingDetails.decimals
+            );
+            assertEq(balanceBefore - stake, balanceAfter, "Recaller balance not transfered correctly");
+            assertEq(
+                recallContractBalanceBefore + stake,
+                recallContractBalanceAfter,
+                "Balance not transfered to recall contract correctly"
+            );
+        }
+
+        {
+            // refinance with correct terms
+            uint256 newLenderBefore = sixDecimals.balanceOf(refinancer.addr);
+            uint256 oldLenderBefore = sixDecimals.balanceOf(lender.addr);
+            uint256 oldOriginatorBefore = sixDecimals.balanceOf(loan.originator);
+            uint256 recallerBefore = sixDecimals.balanceOf(recaller.addr);
+            uint256 newFullfillerBefore = sixDecimals.balanceOf(address(this));
+            BaseRecall.Details memory details = abi.decode(loan.terms.statusData, (BaseRecall.Details));
+            vm.warp(block.timestamp + (details.recallWindow / 2));
+
+            bytes memory pricingData =
+                abi.encode(BasePricing.Details({rate: 1e4, /* 1% */ carryRate: 1e5, decimals: 6}));
+            {
+                Starport.Loan memory refinancableLoan = getRefinanceDetails(loan, pricingData, refinancer.addr).loan;
+                CaveatEnforcer.SignedCaveats memory refinancerCaveat =
+                    _generateSignedCaveatLender(refinancableLoan, refinancer, bytes32(uint256(1)), true);
+
+                vm.startPrank(refinancer.addr);
+                sixDecimals.approve(address(SP), refinancableLoan.debt[0].amount);
+                vm.stopPrank();
+
+                sixDecimals.approve(address(SP), stake);
+                refinanceLoan(loan, pricingData, address(this), refinancerCaveat, refinancer.addr);
+            }
+
+            BasePricing.Details memory pricingDetails = abi.decode(loan.terms.pricingData, (BasePricing.Details));
+            uint256 interest;
+            {
+                // uint256 delta_t = block.timestamp - loan.start;
+                interest = BasePricing(address(pricing)).calculateInterest(
+                    (block.timestamp - loan.start), loan.debt[0].amount, pricingDetails.rate, pricingDetails.decimals
+                );
+
+                uint256 recallBonus = (stake).mulDiv(1e4, 1e5);
+
+                assertEq(
+                    sixDecimals.balanceOf(lender.addr),
+                    oldLenderBefore + loan.debt[0].amount + recallBonus
+                        + interest.mulDiv(
+                            (10 ** pricingDetails.decimals) - pricingDetails.carryRate, 10 ** pricingDetails.decimals
+                        ),
+                    "Payment to old lender calculated incorrectly"
+                );
+            }
+
+            {
+                uint256 newLenderAfter = sixDecimals.balanceOf(refinancer.addr);
+                assertEq(
+                    newLenderAfter,
+                    newLenderBefore - (loan.debt[0].amount + interest),
+                    "Payment from new lender calculated incorrectly"
+                );
+            }
+            assertEq(
+                recallerBefore,
+                sixDecimals.balanceOf(recaller.addr),
+                "Recaller stake not paid to lender and fulfiller as expected"
+            );
+
+            {
+                assertEq(
+                    sixDecimals.balanceOf(loan.originator),
+                    oldOriginatorBefore + interest.mulDiv(pricingDetails.carryRate, 10 ** pricingDetails.decimals),
+                    "Carry payment to old originator calculated incorrectly"
+                );
+            }
+
+            {
+                assertEq(
+                    sixDecimals.balanceOf(address(this)),
+                    newFullfillerBefore + (stake).mulDivUp(9e4, 1e5),
+                    "New fulfiller did not repay recaller stake correctly"
+                );
+            }
+
+            {
+                uint256 loanId = loan.getId();
+                assertTrue(SP.closed(loanId), "LoanId not properly flipped to inactive after refinance");
+            }
+        }
+        {
+            uint256 recallContractBalanceAfter = sixDecimals.balanceOf(address(status));
+            assertEq(recallContractBalanceAfter, uint256(0), "BaseRecall did get emptied as expected");
+        }
     }
 
     function testNewLoanERC721CollateralDefaultTermsRecallBase() public {
