@@ -177,13 +177,13 @@ contract TestAstariaV1Settlement is AstariaV1Test, DeepEq {
                 0,
                 pricingDetails.decimals
             ),
-            abi.encode(currentAuctionPrice - loan.debt[0].amount + 1)
+            abi.encode(currentAuctionPrice - loan.debt[0].amount)
         );
 
         uint256 interest = BasePricing(loan.terms.pricing).getInterest(
             loan, pricingDetails.rate, loan.start, block.timestamp, 0, pricingDetails.decimals
         );
-        uint256 carry = interest.mulWad(pricingDetails.carryRate);
+        uint256 carry = (interest * pricingDetails.carryRate) / 10 ** pricingDetails.decimals;
         (ReceivedItem[] memory settlementConsideration, address authorized) =
             Settlement(loan.terms.settlement).getSettlementConsideration(loan);
         BaseRecall.Details memory hookDetails = abi.decode(loan.terms.statusData, (BaseRecall.Details));

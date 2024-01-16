@@ -173,7 +173,7 @@ contract AstariaV1Settlement is DutchAuctionSettlement {
         uint256 carry = (interest * pricingDetails.carryRate) / 10 ** pricingDetails.decimals;
 
         if (carry > 0 && debtItem.amount + interest - carry < settlementPrice) {
-            uint256 excess = settlementPrice - debtItem.amount + interest - carry;
+            uint256 excess = settlementPrice - (debtItem.amount + interest - carry);
             consideration[i] = ReceivedItem({
                 itemType: debtItem.itemType,
                 identifier: debtItem.identifier,
