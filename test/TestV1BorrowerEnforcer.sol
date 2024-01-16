@@ -157,9 +157,9 @@ contract TestV1BorrowerEnforcer is AstariaV1Test, AstariaV1BorrowerEnforcer {
         // amount above the expected collateral amount
         vm.expectRevert(AmountExceedsCaveatCollateral.selector);
         borrowerEnforcer.validate(new AdditionalTransfer[](0), loan, abi.encode(details));
-        
+
         // amount below the expected collateral amount
-        loan.collateral[0].amount-=2;
+        loan.collateral[0].amount -= 2;
         borrowerEnforcer.validate(new AdditionalTransfer[](0), loan, abi.encode(details));
     }
 
