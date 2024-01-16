@@ -27,6 +27,7 @@ contract AstariaV1BorrowerEnforcer is BorrowerEnforcer {
     error DebtBundlesNotSupported();
     error LoanAmountOutOfBounds();
     error LoanRateExceedsCurrentRate();
+    error AmountExceedsCaveatCollateral();
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                          STRUCTS                           */
@@ -81,7 +82,7 @@ contract AstariaV1BorrowerEnforcer is BorrowerEnforcer {
         );
 
         V1BorrowerDetails memory v1Details = abi.decode(caveatData, (V1BorrowerDetails));
-
+        
         if (loanAmount < v1Details.minAmount || loanAmount > v1Details.maxAmount) {
             // Debt amount is less than the current caveat amount
             revert LoanAmountOutOfBounds();
@@ -92,14 +93,28 @@ contract AstariaV1BorrowerEnforcer is BorrowerEnforcer {
             // Loan rate is greater than the current caveat rate
             revert LoanRateExceedsCurrentRate();
         }
+        
 
+        BorrowerEnforcer.Details memory caveatDetails = v1Details.details;
         // Update the caveat loan rate and amount
-        Starport.Loan memory caveatLoan = v1Details.details.loan;
+        Starport.Loan memory caveatLoan = caveatDetails.loan;
+        uint256 i = 0;
+        for(;i<caveatLoan.collateral.length;){
+            if(caveatLoan.collateral[i].amount < loan.collateral[i].amount){
+                revert AmountExceedsCaveatCollateral();
+            }
+            else {
+                caveatLoan.collateral[i].amount = loan.collateral[i].amount;
+            }
+            unchecked {
+                ++i;
+            }
+        }
         AstariaV1Lib.setBasePricingRate(caveatLoan.terms.pricingData, loanRate);
         caveatLoan.debt[0].amount = loanAmount;
 
         // Hash match w/ expected issuer
-        _validate(additionalTransfers, loan, v1Details.details);
+        _validate(additionalTransfers, loan, caveatDetails);
         selector = CaveatEnforcer.validate.selector;
     }
 
