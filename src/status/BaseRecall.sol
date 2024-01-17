@@ -74,7 +74,7 @@ abstract contract BaseRecall {
         uint256 recallStakeDuration;
         // Maximum rate of the recall before failure
         uint256 recallMax;
-        // Ratio the recaller gets at liquidation (1e18, 100%, 1.0)
+        // Ratio the recaller gets at liquidation (10 ** decimals, 100%, 1.0)
         uint256 recallerRewardRatio;
     }
 
