@@ -22,6 +22,7 @@ import {ConsiderationInterface} from "seaport-types/src/interfaces/Consideration
 import {ERC20} from "solady/src/tokens/ERC20.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 import {Ownable} from "solady/src/auth/Ownable.sol";
+import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
 
 abstract contract BaseRecall {
     using FixedPointMathLib for uint256;
@@ -258,7 +259,7 @@ abstract contract BaseRecall {
             if (transfer.itemType != ItemType.ERC20) {
                 revert InvalidItemType();
             }
-            ERC20(transfer.token).transfer(transfer.to, transfer.amount);
+            SafeTransferLib.safeTransfer(transfer.token, transfer.to, transfer.amount);
 
             unchecked {
                 ++i;
