@@ -66,7 +66,7 @@ abstract contract BaseRecall {
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     struct Details {
-        // Period at the begininng of a loan in which the loan cannot be recalled
+        // Period at the beginning of a loan in which the loan cannot be recalled
         uint256 honeymoon;
         // Period for which the recall is active
         uint256 recallWindow;
@@ -104,7 +104,7 @@ abstract contract BaseRecall {
         Details memory details = abi.decode(loan.terms.statusData, (Details));
         uint256 loanId = loan.getId();
 
-        // Calculates the porportion of time elapsed, then multiplies times the max rate
+        // Calculates the proportion of time elapsed, then multiplies times the max rate
         return details.recallMax * (block.timestamp - recalls[loanId].start) / details.recallWindow;
     }
 
