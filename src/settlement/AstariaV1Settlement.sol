@@ -32,8 +32,6 @@ contract AstariaV1Settlement is DutchAuctionSettlement {
     /*                       CUSTOM ERRORS                        */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
-    error ExecuteHandlerNotImplemented();
-    error InvalidHandler();
     error LoanNotRecalled();
     error NoAuction();
     error AuctionStartBeforeNow();
