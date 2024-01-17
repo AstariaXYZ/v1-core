@@ -158,7 +158,7 @@ abstract contract BaseRecall {
     function withdraw(Starport.Loan calldata loan, address receiver) external {
         uint256 loanId = loan.getId();
 
-        // Loan has not been refinanced, loan is still active. SP.tokenId changes on refinance
+        // Loan has not been refinanced, loan is still active. SP.loanId changes on refinance
         if (SP.open(loanId)) {
             revert LoanHasNotBeenRefinanced();
         }
@@ -167,7 +167,7 @@ abstract contract BaseRecall {
 
         Recall storage recall = recalls[loanId];
         address recaller = recall.recaller;
-        // Ensure that a recall exists for the provided tokenId, ensure that the recall
+        // Ensure that a recall exists for the provided loanId, ensure that the recall
         if (recall.start == 0 || recaller == address(0)) {
             revert WithdrawDoesNotExist();
         }
