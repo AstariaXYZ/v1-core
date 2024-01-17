@@ -132,8 +132,11 @@ contract AstariaV1Test is StarportTest {
         loan = loanCopy(loan);
         loan.borrower = address(0);
 
-        AstariaV1LenderEnforcer.V1LenderDetails memory v1LenderDetails =
-            AstariaV1LenderEnforcer.V1LenderDetails({matchIdentifier: true, details: LenderEnforcer.Details(loan)});
+        AstariaV1LenderEnforcer.V1LenderDetails memory v1LenderDetails = AstariaV1LenderEnforcer.V1LenderDetails({
+            matchIdentifier: true,
+            minDebtAmount: loan.debt[0].amount,
+            details: LenderEnforcer.Details(loan)
+        });
 
         CaveatEnforcer.Caveat memory caveat =
             CaveatEnforcer.Caveat({enforcer: address(lenderEnforcer), data: abi.encode(v1LenderDetails)});
