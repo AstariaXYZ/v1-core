@@ -109,7 +109,7 @@ contract TestV1BorrowerEnforcer is AstariaV1Test, AstariaV1BorrowerEnforcer {
         borrowerEnforcer.validate(new AdditionalTransfer[](0), loan, abi.encode(details));
     }
 
-    function testV1BorrowerEnforcerAmountOOB() public {
+    function testV1BorrowerEnforcerDebtAmountOOB() public {
         Starport.Loan memory loan = generateDefaultLoanTerms();
 
         AstariaV1BorrowerEnforcer.V1BorrowerDetails memory details = AstariaV1BorrowerEnforcer.V1BorrowerDetails({
@@ -129,6 +129,37 @@ contract TestV1BorrowerEnforcer is AstariaV1Test, AstariaV1BorrowerEnforcer {
         loan.debt[0].amount = details.maxAmount + 1;
 
         vm.expectRevert(LoanAmountOutOfBounds.selector);
+        borrowerEnforcer.validate(new AdditionalTransfer[](0), loan, abi.encode(details));
+    }
+
+    function testV1BorrowerEnforcerCollateralAmountOOB() public {
+        Starport.Loan memory loan = generateDefaultLoanTerms();
+
+        loan.collateral[0] = SpentItem({
+            itemType: ItemType.ERC20,
+            token: address(erc20s[1]),
+            amount: 50,
+            identifier: 0 // 0 for ERC20
+        });
+
+        AstariaV1BorrowerEnforcer.V1BorrowerDetails memory details = AstariaV1BorrowerEnforcer.V1BorrowerDetails({
+            startTime: block.timestamp,
+            endTime: block.timestamp + 10,
+            startRate: endRate / 2,
+            minAmount: loan.debt[0].amount,
+            maxAmount: loan.debt[0].amount * 2,
+            details: BorrowerEnforcer.Details(loanCopy(loan))
+        });
+        loan.terms.pricingData = abi.encode(BasePricing.Details({carryRate: 0, rate: endRate / 2, decimals: 18}));
+
+        loan.collateral[0].amount++;
+
+        // amount above the expected collateral amount
+        vm.expectRevert(AmountExceedsCaveatCollateral.selector);
+        borrowerEnforcer.validate(new AdditionalTransfer[](0), loan, abi.encode(details));
+
+        // amount below the expected collateral amount
+        loan.collateral[0].amount -= 2;
         borrowerEnforcer.validate(new AdditionalTransfer[](0), loan, abi.encode(details));
     }
 
