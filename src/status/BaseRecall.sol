@@ -172,8 +172,7 @@ abstract contract BaseRecall {
             revert WithdrawDoesNotExist();
         }
 
-        recall.recaller = payable(address(0));
-        recall.start = 0;
+        delete recalls[loanId];
 
         Details memory details = abi.decode(loan.terms.statusData, (Details));
         AdditionalTransfer[] memory recallConsideration =
