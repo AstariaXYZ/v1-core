@@ -4,4 +4,4 @@
 
 ### License
 
-[BUSL-1.1](LICENSE) Copyright 2023 Astaria Labs, Inc.
+[Apache 2.0](LICENSE) Copyright 2023 Astaria Labs, Inc.
