@@ -145,7 +145,7 @@ contract AstariaV1Settlement is DutchAuctionSettlement {
             start = _getAuctionStart(loan, recallStart);
         }
 
-        if(block.timestamp < start){
+        if (block.timestamp < start) {
             revert AuctionStartBeforeNow();
         }
 
