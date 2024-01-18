@@ -13,11 +13,10 @@
 pragma solidity ^0.8.17;
 
 import {Starport} from "starport-core/Starport.sol";
-
-import {BaseRecallPricing} from "v1-core/pricing/BaseRecallPricing.sol";
+import {BasePricing} from "starport-core/pricing/BasePricing.sol";
 import {AstariaV1Lib} from "v1-core/lib/AstariaV1Lib.sol";
 
-abstract contract CompoundInterestPricing is BaseRecallPricing {
+abstract contract CompoundInterestPricing is BasePricing {
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                     PUBLIC FUNCTIONS                       */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
