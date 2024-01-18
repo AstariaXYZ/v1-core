@@ -22,6 +22,7 @@ import {ConsiderationInterface} from "seaport-types/src/interfaces/Consideration
 import {ERC20} from "solady/src/tokens/ERC20.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 import {Ownable} from "solady/src/auth/Ownable.sol";
+import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
 
 abstract contract BaseRecall {
     using FixedPointMathLib for uint256;
@@ -65,7 +66,7 @@ abstract contract BaseRecall {
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     struct Details {
-        // Period at the begininng of a loan in which the loan cannot be recalled
+        // Period at the beginning of a loan in which the loan cannot be recalled
         uint256 honeymoon;
         // Period for which the recall is active
         uint256 recallWindow;
@@ -73,7 +74,7 @@ abstract contract BaseRecall {
         uint256 recallStakeDuration;
         // Maximum rate of the recall before failure
         uint256 recallMax;
-        // Ratio the recaller gets at liquidation (1e18, 100%, 1.0)
+        // Ratio the recaller gets at liquidation (10 ** decimals, 100%, 1.0)
         uint256 recallerRewardRatio;
     }
 
@@ -103,7 +104,7 @@ abstract contract BaseRecall {
         Details memory details = abi.decode(loan.terms.statusData, (Details));
         uint256 loanId = loan.getId();
 
-        // Calculates the porportion of time elapsed, then multiplies times the max rate
+        // Calculates the proportion of time elapsed, then multiplies times the max rate
         return details.recallMax * (block.timestamp - recalls[loanId].start) / details.recallWindow;
     }
 
@@ -157,7 +158,7 @@ abstract contract BaseRecall {
     function withdraw(Starport.Loan calldata loan, address receiver) external {
         uint256 loanId = loan.getId();
 
-        // Loan has not been refinanced, loan is still active. SP.tokenId changes on refinance
+        // Loan has not been refinanced, loan is still active. SP.loanId changes on refinance
         if (SP.open(loanId)) {
             revert LoanHasNotBeenRefinanced();
         }
@@ -166,13 +167,12 @@ abstract contract BaseRecall {
 
         Recall storage recall = recalls[loanId];
         address recaller = recall.recaller;
-        // Ensure that a recall exists for the provided tokenId, ensure that the recall
+        // Ensure that a recall exists for the provided loanId, ensure that the recall
         if (recall.start == 0 || recaller == address(0)) {
             revert WithdrawDoesNotExist();
         }
 
-        recall.recaller = payable(address(0));
-        recall.start = 0;
+        delete recalls[loanId];
 
         Details memory details = abi.decode(loan.terms.statusData, (Details));
         AdditionalTransfer[] memory recallConsideration =
@@ -258,7 +258,7 @@ abstract contract BaseRecall {
             if (transfer.itemType != ItemType.ERC20) {
                 revert InvalidItemType();
             }
-            ERC20(transfer.token).transfer(transfer.to, transfer.amount);
+            SafeTransferLib.safeTransfer(transfer.token, transfer.to, transfer.amount);
 
             unchecked {
                 ++i;

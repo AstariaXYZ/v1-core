@@ -32,10 +32,9 @@ contract AstariaV1Settlement is DutchAuctionSettlement {
     /*                       CUSTOM ERRORS                        */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
-    error ExecuteHandlerNotImplemented();
-    error InvalidHandler();
     error LoanNotRecalled();
     error NoAuction();
+    error AuctionStartBeforeNow();
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                        CONSTRUCTOR                         */
@@ -144,6 +143,10 @@ contract AstariaV1Settlement is DutchAuctionSettlement {
             }
 
             start = _getAuctionStart(loan, recallStart);
+        }
+
+        if (block.timestamp < start) {
+            revert AuctionStartBeforeNow();
         }
 
         Details memory details = abi.decode(loan.terms.settlementData, (Details));

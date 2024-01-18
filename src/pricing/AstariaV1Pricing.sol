@@ -60,7 +60,7 @@ contract AstariaV1Pricing is CompoundInterestPricing {
     {
         // Borrowers can refinance a loan at any time
         if (fulfiller != loan.borrower) {
-            // Check if a recall is occuring
+            // Check if a recall is occurring
             AstariaV1Status status = AstariaV1Status(loan.terms.status);
 
             Details memory newDetails = abi.decode(newPricingData, (Details));

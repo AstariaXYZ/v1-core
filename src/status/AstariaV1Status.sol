@@ -43,16 +43,16 @@ contract AstariaV1Status is BaseStatus, BaseRecall, Ownable {
     // @inheritdoc Status
     function isActive(Starport.Loan calldata loan, bytes calldata) external view override returns (bool) {
         Details memory details = abi.decode(loan.terms.statusData, (Details));
-        uint256 tokenId = loan.getId();
-        uint64 start = recalls[tokenId].start;
+        uint256 loanId = loan.getId();
+        uint64 start = recalls[loanId].start;
         return !(start > 0 && start + details.recallWindow < block.timestamp);
     }
 
     // @inheritdoc BaseStatus
     function isRecalled(Starport.Loan calldata loan) external view override returns (bool) {
         Details memory details = abi.decode(loan.terms.statusData, (Details));
-        uint256 tokenId = loan.getId();
-        uint64 start = recalls[tokenId].start;
+        uint256 loanId = loan.getId();
+        uint64 start = recalls[loanId].start;
         return (start + details.recallWindow > block.timestamp) && start != 0;
     }
 
@@ -63,7 +63,7 @@ contract AstariaV1Status is BaseStatus, BaseRecall, Ownable {
         bool valid = true;
         if (
             details.recallerRewardRatio > 10 ** pDetails.decimals || details.recallMax > 10 * 10 ** pDetails.decimals
-                || !isValidPricing[loan.terms.pricing]
+                || !isValidPricing[loan.terms.pricing] || details.recallMax == 0
         ) {
             valid = false;
         }

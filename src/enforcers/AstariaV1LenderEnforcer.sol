@@ -34,7 +34,7 @@ contract AstariaV1LenderEnforcer is LenderEnforcer {
     /*                  CONSTANTS AND IMMUTABLES                  */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
-    uint256 constant MAX_DURATION = uint256(3 * 365 * 1 days); // 3 years
+    uint256 constant MAX_DURATION = uint256(3 * 365 days); // 3 years
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                          STRUCTS                           */
