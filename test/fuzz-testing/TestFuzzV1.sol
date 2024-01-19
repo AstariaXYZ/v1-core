@@ -157,7 +157,7 @@ contract TestFuzzV1 is AstariaV1Test, TestFuzzStarport {
         }
         loan.debt = debt;
         loan.borrower = borrower.addr;
-        loan.custodian = SP.defaultCustodian();
+        loan.custodian = address(custodian);
         loan.issuer = lender.addr;
         return loan;
     }
