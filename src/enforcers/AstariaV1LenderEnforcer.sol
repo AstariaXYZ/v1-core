@@ -18,7 +18,7 @@ import {BasePricing} from "starport-core/pricing/BasePricing.sol";
 import {AdditionalTransfer} from "starport-core/lib/StarportLib.sol";
 
 import {AstariaV1Lib} from "v1-core/lib/AstariaV1Lib.sol";
-
+import {ItemType} from "seaport-types/src/lib/ConsiderationEnums.sol";
 import {SpentItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
 
 contract AstariaV1LenderEnforcer is LenderEnforcer {
@@ -98,7 +98,13 @@ contract AstariaV1LenderEnforcer is LenderEnforcer {
 
         if (!v1Details.matchIdentifier) {
             // Update the caveat loan identifier
-            caveatDebt.identifier = loan.debt[0].identifier;
+            uint256 i = 0;
+            for (; i < caveatLoan.collateral.length;) {
+                caveatLoan.collateral[i].identifier = loan.collateral[i].identifier;
+                unchecked {
+                    ++i;
+                }
+            }
         }
 
         // Hash and match w/ expected borrower

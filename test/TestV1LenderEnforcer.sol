@@ -100,7 +100,7 @@ contract TestV1LenderEnforcer is AstariaV1Test, AstariaV1LenderEnforcer {
             minDebtAmount: loan.debt[0].amount,
             details: LenderEnforcer.Details(loanCopy(loan))
         });
-        loan.debt[0].identifier += 1;
+        loan.collateral[0].identifier += 1;
 
         lenderEnforcer.validate(new AdditionalTransfer[](0), loan, abi.encode(details));
         details.matchIdentifier = true;
