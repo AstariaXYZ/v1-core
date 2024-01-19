@@ -1,4 +1,4 @@
-//  SPDX-License-Identifier: BUSL-1.1
+//  SPDX-License-Identifier: Apache-2.0
 //   █████╗ ███████╗████████╗ █████╗ ██████╗ ██╗ █████╗     ██╗   ██╗ ██╗
 //  ██╔══██╗██╔════╝╚══██╔══╝██╔══██╗██╔══██╗██║██╔══██╗    ██║   ██║███║
 //  ███████║███████╗   ██║   ███████║██████╔╝██║███████║    ██║   ██║╚██║
@@ -45,7 +45,7 @@ library AstariaV1Lib {
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     function calculateCompoundInterest(uint256 delta_t, uint256 amount, uint256 rate, uint256 decimals)
-        public
+        internal
         pure
         returns (uint256)
     {
