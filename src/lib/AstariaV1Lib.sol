@@ -54,7 +54,7 @@ library AstariaV1Lib {
             int256 exponent = int256((rate * baseAdjustment * delta_t) / 365 days);
             amount *= baseAdjustment;
             uint256 result = amount.mulWad(uint256(exponent.expWad())) - amount;
-            return result /= baseAdjustment;
+            return result / baseAdjustment;
         }
         int256 exponent = int256((rate * delta_t) / 365 days);
         return amount.mulWad(uint256(exponent.expWad())) - amount;
