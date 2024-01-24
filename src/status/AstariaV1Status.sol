@@ -63,7 +63,7 @@ contract AstariaV1Status is BaseStatus, BaseRecall, Ownable {
         bool valid = true;
         if (
             details.recallerRewardRatio > 10 ** pDetails.decimals || details.recallMax > 10 * 10 ** pDetails.decimals
-                || !isValidPricing[loan.terms.pricing] || details.recallMax == 0
+                || !isValidPricing[loan.terms.pricing] || details.recallMax == 0 || details.recallWindow == 0
         ) {
             valid = false;
         }
