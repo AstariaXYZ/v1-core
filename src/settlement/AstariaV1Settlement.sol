@@ -138,7 +138,7 @@ contract AstariaV1Settlement is DutchAuctionSettlement {
             }
 
             if (recaller == loan.issuer) {
-                return (new ReceivedItem[](0), recaller);
+                return (consideration, recaller);
             }
 
             start = _getAuctionStart(loan, recallStart);
