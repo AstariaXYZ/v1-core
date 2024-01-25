@@ -96,14 +96,8 @@ contract TestAstariaV1Pricing is AstariaV1Test, DeepEq {
         SpentItem[] memory expectedCarryConsideration = new SpentItem[](0);
         AdditionalTransfer[] memory expectedAdditionalTransfers = new AdditionalTransfer[](0);
 
-        (
-            SpentItem[] memory consideration,
-            SpentItem[] memory carryConsideration,
-            AdditionalTransfer[] memory additionalTransfers
-        ) = Pricing(loan.terms.pricing).getRefinanceConsideration(loan, newPricingData, address(loan.borrower));
-        _deepEq(consideration, expectedConsideration);
-        _deepEq(carryConsideration, expectedCarryConsideration);
-        _deepEq(expectedAdditionalTransfers, additionalTransfers);
+        vm.expectRevert(Pricing.InvalidRefinance.selector);
+        Pricing(loan.terms.pricing).getRefinanceConsideration(loan, newPricingData, address(loan.borrower));
     }
 
     function testGetRefinanceConsiderationZeroRate() public {
