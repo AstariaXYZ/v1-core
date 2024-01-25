@@ -16,6 +16,7 @@ import {Starport, SpentItem} from "starport-core/Starport.sol";
 import {BasePricing} from "starport-core/pricing/BasePricing.sol";
 import {AdditionalTransfer} from "starport-core/lib/StarportLib.sol";
 import {StarportLib} from "starport-core/lib/StarportLib.sol";
+import {PausableNonReentrant} from "starport-core/lib/PausableNonReentrant.sol";
 
 import {ItemType} from "seaport-types/src/lib/ConsiderationEnums.sol";
 import {ConsiderationInterface} from "seaport-types/src/interfaces/ConsiderationInterface.sol";
@@ -23,7 +24,7 @@ import {ERC20} from "solady/src/tokens/ERC20.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
 
-abstract contract BaseRecall {
+abstract contract BaseRecall is PausableNonReentrant {
     using FixedPointMathLib for uint256;
     using {StarportLib.getId} for Starport.Loan;
 
@@ -87,8 +88,9 @@ abstract contract BaseRecall {
     /*                        CONSTRUCTOR                         */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
-    constructor(Starport SP_) {
+    constructor(Starport SP_, address owner_) {
         SP = SP_;
+        _initializeOwner(owner_);
     }
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
@@ -120,7 +122,7 @@ abstract contract BaseRecall {
      * @dev Recalls a loan
      * @param loan      The loan to recall
      */
-    function recall(Starport.Loan calldata loan) external {
+    function recall(Starport.Loan calldata loan) external pausableNonReentrant {
         Details memory details = abi.decode(loan.terms.statusData, (Details));
 
         if ((loan.start + details.honeymoon) > block.timestamp) {

@@ -17,6 +17,7 @@ import "test/AstariaV1Test.sol";
 import {CaveatEnforcer} from "starport-core/enforcers/CaveatEnforcer.sol";
 import {Originator} from "starport-core/originators/Originator.sol";
 import {StarportLib, Actions} from "starport-core/lib/StarportLib.sol";
+import {PausableNonReentrant} from "starport-core/lib/PausableNonReentrant.sol";
 
 import {DeepEq} from "starport-test/utils/DeepEq.sol";
 import {SpentItemLib} from "seaport-sol/src/lib/SpentItemLib.sol";
@@ -46,6 +47,21 @@ contract TestAstariaV1Status is AstariaV1Test, DeepEq {
             _createLoan721Collateral20Debt({lender: lender.addr, borrowAmount: 1e18, terms: terms});
         uint256 loanId = loan.getId();
         assert(AstariaV1Status(loan.terms.status).isActive(loan, ""));
+    }
+
+    function testRecallPauseable() public {
+        AstariaV1Status v1Status = AstariaV1Status(address(status));
+        v1Status.pause();
+
+        Starport.Loan memory loan;
+        vm.expectRevert(PausableNonReentrant.IsPaused.selector);
+        v1Status.recall(loan);
+
+        vm.prank(address(0xdead));
+        vm.expectRevert(Ownable.Unauthorized.selector);
+        v1Status.unpause();
+
+        v1Status.unpause();
     }
 
     function testIsRecalledInsideWindow() public {

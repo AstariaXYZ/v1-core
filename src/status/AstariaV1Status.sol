@@ -19,9 +19,8 @@ import {Validation} from "starport-core/lib/Validation.sol";
 import {BasePricing} from "starport-core/pricing/BasePricing.sol";
 import {BaseRecall} from "v1-core/status/BaseRecall.sol";
 import {BaseStatus} from "v1-core/status/BaseStatus.sol";
-import {Ownable} from "solady/src/auth/Ownable.sol";
 
-contract AstariaV1Status is BaseStatus, BaseRecall, Ownable {
+contract AstariaV1Status is BaseStatus, BaseRecall {
     using {StarportLib.getId} for Starport.Loan;
 
     mapping(address => bool) public isValidPricing;
@@ -32,9 +31,7 @@ contract AstariaV1Status is BaseStatus, BaseRecall, Ownable {
     /*                        CONSTRUCTOR                         */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
-    constructor(Starport SP_, address owner_) BaseRecall(SP_) {
-        _initializeOwner(owner_);
-    }
+    constructor(Starport SP_, address owner_) BaseRecall(SP_, owner_) {}
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                     EXTERNAL FUNCTIONS                     */
