@@ -58,14 +58,17 @@ contract AstariaV1Pricing is CompoundInterestPricing {
             AdditionalTransfer[] memory recallConsideration
         )
     {
+        Details memory newDetails = abi.decode(newPricingData, (Details));
+        Details memory oldDetails = abi.decode(loan.terms.pricingData, (Details));
+        if (newDetails.decimals != oldDetails.decimals || newDetails.rate == 0) {
+            revert InvalidRefinance();
+        }
         // Borrowers can refinance a loan at any time
         if (fulfiller != loan.borrower) {
             // Check if a recall is occurring
             AstariaV1Status status = AstariaV1Status(loan.terms.status);
 
-            Details memory newDetails = abi.decode(newPricingData, (Details));
-            Details memory oldDetails = abi.decode(loan.terms.pricingData, (Details));
-            if (!status.isRecalled(loan) || newDetails.decimals != oldDetails.decimals || newDetails.rate == 0) {
+            if (!status.isRecalled(loan)) {
                 revert InvalidRefinance();
             }
             uint256 rate = status.getRecallRate(loan);
