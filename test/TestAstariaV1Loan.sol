@@ -745,4 +745,89 @@ contract TestAstariaV1Loan is AstariaV1Test {
             );
         }
     }
+
+    function testNewLoanERC721CollateralPermissionlessRecallBlockedRecaller() public {
+        BaseRecall.Details memory statusDetails = abi.decode(defaultStatusData, (BaseRecall.Details));
+
+        statusDetails.recallStakeDuration = 0;
+        Starport.Terms memory terms = Starport.Terms({
+            status: address(status),
+            settlement: address(settlement),
+            pricing: address(pricing),
+            pricingData: defaultPricingData,
+            settlementData: defaultSettlementData,
+            statusData: abi.encode(statusDetails)
+        });
+        Starport.Loan memory loan =
+            _createLoan721Collateral20Debt({lender: lender.addr, borrowAmount: 1e18, terms: terms});
+
+        loan.toStorage(activeLoan);
+        uint256 elapsedTime;
+        {
+            vm.warp(block.timestamp + statusDetails.honeymoon);
+            elapsedTime += statusDetails.honeymoon;
+            vm.startPrank(recaller.addr);
+
+            vm.expectRevert(BaseRecall.InvalidRecaller.selector);
+            BaseRecall recallContract = BaseRecall(address(status));
+            recallContract.recall(loan);
+            vm.stopPrank();
+        }
+    }
+
+    function testNewLoanERC721CollateralPermissionlessRecallBlockedLender() public {
+        BaseRecall.Details memory statusDetails = abi.decode(defaultStatusData, (BaseRecall.Details));
+
+        statusDetails.recallStakeDuration = 0;
+        Starport.Terms memory terms = Starport.Terms({
+            status: address(status),
+            settlement: address(settlement),
+            pricing: address(pricing),
+            pricingData: defaultPricingData,
+            settlementData: defaultSettlementData,
+            statusData: abi.encode(statusDetails)
+        });
+        Starport.Loan memory loan =
+            _createLoan721Collateral20Debt({lender: lender.addr, borrowAmount: 1e18, terms: terms});
+
+        loan.toStorage(activeLoan);
+        uint256 elapsedTime;
+        {
+            vm.warp(block.timestamp + statusDetails.honeymoon);
+            elapsedTime += statusDetails.honeymoon;
+            vm.startPrank(lender.addr);
+
+            BaseRecall recallContract = BaseRecall(address(status));
+            recallContract.recall(loan);
+            vm.stopPrank();
+        }
+    }
+
+    function testNewLoanERC721CollateralPermissionlessRecallBlockedBorrower() public {
+        BaseRecall.Details memory statusDetails = abi.decode(defaultStatusData, (BaseRecall.Details));
+
+        statusDetails.recallStakeDuration = 0;
+        Starport.Terms memory terms = Starport.Terms({
+            status: address(status),
+            settlement: address(settlement),
+            pricing: address(pricing),
+            pricingData: defaultPricingData,
+            settlementData: defaultSettlementData,
+            statusData: abi.encode(statusDetails)
+        });
+        Starport.Loan memory loan =
+            _createLoan721Collateral20Debt({lender: lender.addr, borrowAmount: 1e18, terms: terms});
+
+        loan.toStorage(activeLoan);
+        uint256 elapsedTime;
+        {
+            vm.warp(block.timestamp + statusDetails.honeymoon);
+            elapsedTime += statusDetails.honeymoon;
+            vm.startPrank(borrower.addr);
+
+            BaseRecall recallContract = BaseRecall(address(status));
+            recallContract.recall(loan);
+            vm.stopPrank();
+        }
+    }
 }
