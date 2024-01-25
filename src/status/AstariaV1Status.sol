@@ -32,8 +32,8 @@ contract AstariaV1Status is BaseStatus, BaseRecall, Ownable {
     /*                        CONSTRUCTOR                         */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
-    constructor(Starport SP_) BaseRecall(SP_) {
-        _initializeOwner(msg.sender);
+    constructor(Starport SP_, address owner_) BaseRecall(SP_) {
+        _initializeOwner(owner_);
     }
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/

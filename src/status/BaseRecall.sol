@@ -21,7 +21,6 @@ import {ItemType} from "seaport-types/src/lib/ConsiderationEnums.sol";
 import {ConsiderationInterface} from "seaport-types/src/interfaces/ConsiderationInterface.sol";
 import {ERC20} from "solady/src/tokens/ERC20.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
-import {Ownable} from "solady/src/auth/Ownable.sol";
 import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
 
 abstract contract BaseRecall {
