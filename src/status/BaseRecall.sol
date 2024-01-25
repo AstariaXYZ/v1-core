@@ -59,6 +59,7 @@ abstract contract BaseRecall {
     error RecallAlreadyExists();
     error RecallBeforeHoneymoonExpiry();
     error WithdrawDoesNotExist();
+    error InvalidRecaller();
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                          STRUCTS                           */
@@ -137,6 +138,10 @@ abstract contract BaseRecall {
 
         validatePricingContract(loan.terms.pricing);
 
+        // disallow permissionless recall when the details.recallStakeDuration is 0
+        if (details.recallStakeDuration == 0 && msg.sender != loan.issuer && msg.sender != loan.borrower) {
+            revert InvalidRecaller();
+        }
         AdditionalTransfer[] memory recallConsideration = _generateRecallConsideration(
             msg.sender, loan, 0, details.recallStakeDuration, 0, msg.sender, payable(address(this))
         );
