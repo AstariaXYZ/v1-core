@@ -160,6 +160,53 @@ contract TestAstariaV1Status is AstariaV1Test, DeepEq {
         assert(erc20s[0].balanceOf(address(loan.terms.status)) == 0);
     }
 
+    function testRecallAndRefinanceWithLenderCaveat() public {
+        Starport.Terms memory terms = Starport.Terms({
+            status: address(status),
+            settlement: address(settlement),
+            pricing: address(pricing),
+            pricingData: defaultPricingData,
+            settlementData: defaultSettlementData,
+            statusData: defaultStatusData
+        });
+        Starport.Loan memory loan =
+            _createLoan721Collateral20Debt({lender: lender.addr, borrowAmount: 1e18, terms: terms});
+
+        BaseRecall.Details memory details = abi.decode(loan.terms.statusData, (BaseRecall.Details));
+
+        skip(details.honeymoon);
+
+        vm.prank(lender.addr);
+        AstariaV1Status(loan.terms.status).recall(loan);
+        skip(details.recallWindow - 1);
+
+        BasePricing.Details memory newPricingData = abi.decode(defaultPricingData, (BasePricing.Details));
+        newPricingData.rate = newPricingData.rate * 2;
+
+        Starport.Loan memory caveatLoan = loanCopy(loan);
+
+        (SpentItem[] memory repayConsideration, SpentItem[] memory carryConsideration,) = AstariaV1Pricing(
+            loan.terms.pricing
+        ).getRefinanceConsideration(loan, abi.encode(newPricingData), address(0xdead));
+
+        caveatLoan.debt = SP.applyRefinanceConsiderationToLoan(repayConsideration, carryConsideration);
+        caveatLoan.terms.pricingData = abi.encode(newPricingData);
+        caveatLoan.issuer = refinancer.addr;
+        caveatLoan.originator = address(0);
+        caveatLoan.start = 0;
+
+        CaveatEnforcer.SignedCaveats memory signedCaveats =
+            _generateSignedCaveatLender(caveatLoan, refinancer, bytes32(uint256(2)), true);
+
+        vm.startPrank(refinancer.addr);
+        erc20s[0].mint(refinancer.addr, caveatLoan.debt[0].amount);
+        erc20s[0].approve(address(SP), caveatLoan.debt[0].amount);
+        vm.stopPrank();
+
+        vm.prank(address(0xdead));
+        SP.refinance(refinancer.addr, signedCaveats, loan, abi.encode(newPricingData), "");
+    }
+
     function testInvalidRecallLoanDoesNotExist() public {
         Starport.Terms memory terms = Starport.Terms({
             status: address(status),
