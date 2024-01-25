@@ -38,6 +38,17 @@ contract TestAstariaV1Pricing is AstariaV1Test, DeepEq {
         pricing = new AstariaV1Pricing(SP);
     }
 
+    function testGetPaymentConsiderationIncrementation() public {
+        Starport.Loan memory loan = generateDefaultLoanTerms();
+
+        loan.start = uint256(1);
+        loan.originator = address(this);
+
+        (SpentItem[] memory considerationPayment,) = Pricing(loan.terms.pricing).getPaymentConsideration(loan);
+
+        assertEq(considerationPayment[0].amount, loan.debt[0].amount + 1, "Minimum interest accrual failing");
+    }
+
     function testGetRefinanceConsiderationInvalidRefinance() public {
         Starport.Loan memory loan = generateDefaultLoanTerms();
 

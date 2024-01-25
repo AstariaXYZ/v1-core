@@ -39,6 +39,7 @@ library AstariaV1Lib {
     error InterestAccrualRoundingMinimum();
     error UnsupportedDecimalValue();
     error RateExceedMaxRecallRate();
+    error RateTooLow();
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                     PUBLIC FUNCTIONS                       */
@@ -78,16 +79,12 @@ library AstariaV1Lib {
             revert UnsupportedDecimalValue();
         }
 
+        if (rate == 0) {
+            revert RateTooLow();
+        }
         // Check to validate that the MAX_DURATION does not overflow interest calculation
         // Creates a maximum safe duration for a loan, loans can go beyond MAX_DURATION with undefined behavior
         calculateCompoundInterest(MAX_DURATION, amount, recallMax, decimals);
-
-        // Calculate interest for 1 second of time
-        // Loan must produce 1 wei of interest per 1 second of time
-        if (calculateCompoundInterest(1, amount, rate, decimals) == 0) {
-            // Interest does not accrue at least 1 wei per second
-            revert InterestAccrualRoundingMinimum();
-        }
     }
 
     function getBaseRecallMax(bytes memory statusData) internal pure returns (uint256 recallMax) {

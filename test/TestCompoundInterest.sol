@@ -26,23 +26,8 @@ contract TestCompoundInterest is AstariaV1Test {
     using FixedPointMathLib for int256;
 
     function testRateTooLowZero() public {
-        vm.expectRevert(AstariaV1Lib.InterestAccrualRoundingMinimum.selector);
+        vm.expectRevert(AstariaV1Lib.RateTooLow.selector);
         AstariaV1Lib.validateCompoundInterest(1e18, 0, 10e18, 18);
-    }
-
-    function testRateTooLowOne() public {
-        vm.expectRevert(AstariaV1Lib.InterestAccrualRoundingMinimum.selector);
-        AstariaV1Lib.validateCompoundInterest(1e18, 1, 10e18, 18);
-    }
-
-    function testRateTooLowOneNonWADDecimal() public {
-        vm.expectRevert(AstariaV1Lib.InterestAccrualRoundingMinimum.selector);
-        AstariaV1Lib.validateCompoundInterest(1e18, 1, 10e17, 17);
-    }
-
-    function testDecimalsTooLowZero() public {
-        vm.expectRevert(AstariaV1Lib.UnsupportedDecimalValue.selector);
-        AstariaV1Lib.validateCompoundInterest(1e18, 1, 10e18, 0);
     }
 
     function testDecimalsTooHigh() public {
