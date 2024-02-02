@@ -15,7 +15,7 @@ pragma solidity ^0.8.17;
 import {Starport} from "starport-core/Starport.sol";
 
 import {Pricing} from "starport-core/pricing/Pricing.sol";
-import {BasePricing} from "starport-core/pricing/BasePricing.sol";
+import {BasePricing} from "v1-core/pricing/BasePricing.sol";
 import {StarportLib, AdditionalTransfer} from "starport-core/lib/StarportLib.sol";
 
 import {CompoundInterestPricing} from "v1-core/pricing/CompoundInterestPricing.sol";

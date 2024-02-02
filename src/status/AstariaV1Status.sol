@@ -16,7 +16,7 @@ import {Starport} from "starport-core/Starport.sol";
 import {StarportLib} from "starport-core/lib/StarportLib.sol";
 
 import {Validation} from "starport-core/lib/Validation.sol";
-import {BasePricing} from "starport-core/pricing/BasePricing.sol";
+import {BasePricing} from "v1-core/pricing/BasePricing.sol";
 import {BaseRecall} from "v1-core/status/BaseRecall.sol";
 import {BaseStatus} from "v1-core/status/BaseStatus.sol";
 

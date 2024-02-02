@@ -13,7 +13,7 @@
 pragma solidity ^0.8.17;
 
 import {Starport, SpentItem} from "starport-core/Starport.sol";
-import {BasePricing} from "starport-core/pricing/BasePricing.sol";
+import {BasePricing} from "v1-core/pricing/BasePricing.sol";
 import {AdditionalTransfer} from "starport-core/lib/StarportLib.sol";
 import {StarportLib} from "starport-core/lib/StarportLib.sol";
 import {PausableNonReentrant} from "starport-core/lib/PausableNonReentrant.sol";
