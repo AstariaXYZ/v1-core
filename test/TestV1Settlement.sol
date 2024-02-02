@@ -14,7 +14,6 @@ pragma solidity ^0.8.17;
 
 import "test/AstariaV1Test.sol";
 
-import {Originator} from "starport-core/originators/Originator.sol";
 import {CaveatEnforcer} from "starport-core/enforcers/CaveatEnforcer.sol";
 import {StarportLib, Actions} from "starport-core/lib/StarportLib.sol";
 
@@ -60,8 +59,8 @@ contract TestAstariaV1Settlement is AstariaV1Test, DeepEq {
             abi.encode(address(this), uint64(2))
         );
         uint256 auctionStart = AstariaV1Settlement(loan.terms.settlement).getAuctionStart(loan);
-        DutchAuctionSettlement.Details memory auctionDetails =
-            abi.decode(loan.terms.settlementData, (DutchAuctionSettlement.Details));
+        AstariaV1Settlement.Details memory auctionDetails =
+            abi.decode(loan.terms.settlementData, (AstariaV1Settlement.Details));
         vm.warp(auctionStart + auctionDetails.window + 5);
 
         (ReceivedItem[] memory settlementConsideration, address authorized) =
@@ -91,8 +90,8 @@ contract TestAstariaV1Settlement is AstariaV1Test, DeepEq {
             abi.encode(address(this), uint64(2))
         );
         uint256 auctionStart = AstariaV1Settlement(loan.terms.settlement).getAuctionStart(loan);
-        DutchAuctionSettlement.Details memory details =
-            abi.decode(loan.terms.settlementData, (DutchAuctionSettlement.Details));
+        AstariaV1Settlement.Details memory details =
+            abi.decode(loan.terms.settlementData, (AstariaV1Settlement.Details));
 
         vm.warp(auctionStart + details.window + 5);
         (ReceivedItem[] memory settlementConsideration, address authorized) =
@@ -140,7 +139,7 @@ contract TestAstariaV1Settlement is AstariaV1Test, DeepEq {
         Settlement(loan.terms.settlement).getSettlementConsideration(loan);
     }
 
-    function testGetSettlementConsiderationDutchAuctionSettlementAbove() public {
+    function testGetSettlementConsiderationAstariaV1SettlementAbove() public {
         Starport.Terms memory terms = Starport.Terms({
             status: address(status),
             settlement: address(settlement),
@@ -268,8 +267,8 @@ contract TestAstariaV1Settlement is AstariaV1Test, DeepEq {
             abi.encode(address(this), uint64(2))
         );
 
-        DutchAuctionSettlement.Details memory handlerDetails =
-            abi.decode(loan.terms.settlementData, (DutchAuctionSettlement.Details));
+        AstariaV1Settlement.Details memory handlerDetails =
+            abi.decode(loan.terms.settlementData, (AstariaV1Settlement.Details));
 
         vm.warp(AstariaV1Settlement(loan.terms.settlement).getAuctionStart(loan));
         skip(7 days);
@@ -317,8 +316,8 @@ contract TestAstariaV1Settlement is AstariaV1Test, DeepEq {
 
     function testV1SettlementValidateInvalid() public {
         Starport.Loan memory loan = generateDefaultLoanTerms();
-        DutchAuctionSettlement.Details memory details =
-            abi.decode(loan.terms.settlementData, (DutchAuctionSettlement.Details));
+        AstariaV1Settlement.Details memory details =
+            abi.decode(loan.terms.settlementData, (AstariaV1Settlement.Details));
         details.endingPrice = 10;
         details.startingPrice = 1;
         loan.terms.settlementData = abi.encode(details);

@@ -15,7 +15,6 @@ pragma solidity ^0.8.17;
 import "test/AstariaV1Test.sol";
 
 import {CaveatEnforcer} from "starport-core/enforcers/CaveatEnforcer.sol";
-import {Originator} from "starport-core/originators/Originator.sol";
 import {StarportLib, Actions} from "starport-core/lib/StarportLib.sol";
 import {PausableNonReentrant} from "starport-core/lib/PausableNonReentrant.sol";
 

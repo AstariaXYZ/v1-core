@@ -8,7 +8,6 @@ import {
     ItemType,
     CaveatEnforcer,
     StarportTest,
-    DutchAuctionSettlement,
     BasePricing,
     AdditionalTransfer,
     LenderEnforcer,
@@ -201,8 +200,8 @@ contract TestFuzzV1 is AstariaV1Test, TestFuzzStarport {
 
         BaseRecall(goodLoan.terms.status).recall(goodLoan);
         vm.stopPrank();
-        DutchAuctionSettlement.Details memory settlementDetails =
-            abi.decode(goodLoan.terms.settlementData, (DutchAuctionSettlement.Details));
+        AstariaV1Settlement.Details memory settlementDetails =
+            abi.decode(goodLoan.terms.settlementData, (AstariaV1Settlement.Details));
 
         skip(_bound(0, details.recallWindow + 1, details.recallWindow + 1 + settlementDetails.window - 1));
     }
@@ -245,7 +244,7 @@ contract TestFuzzV1 is AstariaV1Test, TestFuzzStarport {
             })
         );
         dataBounds.settlementBoundData = abi.encode(
-            DutchAuctionSettlement.Details({
+            AstariaV1Settlement.Details({
                 startingPrice: _boundMax(1, 1e18),
                 endingPrice: _boundMax(1, 1e18),
                 window: _boundMax(1 days, 365 days)

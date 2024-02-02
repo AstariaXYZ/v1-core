@@ -14,17 +14,17 @@ pragma solidity ^0.8.17;
 
 import {Starport, SpentItem} from "starport-core/Starport.sol";
 import {BasePricing} from "starport-core/pricing/BasePricing.sol";
-import {DutchAuctionSettlement} from "starport-core/settlement/DutchAuctionSettlement.sol";
 import {Settlement} from "starport-core/settlement/Settlement.sol";
 import {StarportLib} from "starport-core/lib/StarportLib.sol";
 
 import {BaseRecall} from "v1-core/status/BaseRecall.sol";
 
+import {AmountDeriver} from "seaport-core/src/lib/AmountDeriver.sol";
 import {ReceivedItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 import {Validation} from "starport-core/lib/Validation.sol";
 
-contract AstariaV1Settlement is DutchAuctionSettlement {
+contract AstariaV1Settlement  is Settlement, AmountDeriver {
     using {StarportLib.getId} for Starport.Loan;
     using FixedPointMathLib for uint256;
 
@@ -32,6 +32,7 @@ contract AstariaV1Settlement is DutchAuctionSettlement {
     /*                       CUSTOM ERRORS                        */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
+    error AuctionNotStarted();
     error LoanNotRecalled();
     error NoAuction();
 
@@ -39,7 +40,18 @@ contract AstariaV1Settlement is DutchAuctionSettlement {
     /*                        CONSTRUCTOR                         */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
-    constructor(Starport SP_) DutchAuctionSettlement(SP_) {}
+    constructor(Starport SP_) Settlement(SP_) {}
+
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                          STRUCTS                           */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
+    struct Details {
+        uint256 startingPrice;
+        uint256 endingPrice;
+        uint256 window;
+    }
+
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                     PUBLIC FUNCTIONS                       */
@@ -69,8 +81,13 @@ contract AstariaV1Settlement is DutchAuctionSettlement {
         });
     }
 
-    // @inheritdoc DutchAuctionSettlement
-    function getAuctionStart(Starport.Loan calldata loan) public view virtual override returns (uint256) {
+
+    /**
+     * @dev Get the start of the auction
+     * @param loan The loan being referenced
+     * @return uint256 The start of the auction
+     */
+    function getAuctionStart(Starport.Loan calldata loan) public view virtual returns (uint256) {
         (, uint64 start) = BaseRecall(loan.terms.status).recalls(loan.getId());
         if (start == 0) {
             revert LoanNotRecalled();

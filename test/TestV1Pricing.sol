@@ -16,7 +16,6 @@ import "test/AstariaV1Test.sol";
 
 import {StarportLib, Actions} from "starport-core/lib/StarportLib.sol";
 
-import {Originator} from "starport-core/originators/Originator.sol";
 import {CaveatEnforcer} from "starport-core/enforcers/CaveatEnforcer.sol";
 
 import {AstariaV1Lib} from "v1-core/lib/AstariaV1Lib.sol";
