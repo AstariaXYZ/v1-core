@@ -14,7 +14,7 @@ pragma solidity ^0.8.17;
 
 import "test/AstariaV1Test.sol";
 
-import {CaveatEnforcer} from "starport-core/enforcers/CaveatEnforcer.sol";
+import {CaveatEnforcer} from "starport-core/CaveatEnforcer.sol";
 import {StarportLib, Actions} from "starport-core/lib/StarportLib.sol";
 
 import {DeepEq} from "starport-test/utils/DeepEq.sol";

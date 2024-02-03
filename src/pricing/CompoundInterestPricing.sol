@@ -13,7 +13,7 @@
 pragma solidity ^0.8.17;
 
 import {Starport} from "starport-core/Starport.sol";
-import {BasePricing} from "starport-core/pricing/BasePricing.sol";
+import {BasePricing} from "v1-core/pricing/BasePricing.sol";
 import {AstariaV1Lib} from "v1-core/lib/AstariaV1Lib.sol";
 
 abstract contract CompoundInterestPricing is BasePricing {

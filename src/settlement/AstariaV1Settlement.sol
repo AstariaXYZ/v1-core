@@ -13,8 +13,8 @@
 pragma solidity ^0.8.17;
 
 import {Starport, SpentItem} from "starport-core/Starport.sol";
-import {BasePricing} from "starport-core/pricing/BasePricing.sol";
-import {Settlement} from "starport-core/settlement/Settlement.sol";
+import {BasePricing} from "v1-core/pricing/BasePricing.sol";
+import {Settlement} from "starport-core/Settlement.sol";
 import {StarportLib} from "starport-core/lib/StarportLib.sol";
 
 import {BaseRecall} from "v1-core/status/BaseRecall.sol";
@@ -24,7 +24,7 @@ import {ReceivedItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 import {Validation} from "starport-core/lib/Validation.sol";
 
-contract AstariaV1Settlement  is Settlement, AmountDeriver {
+contract AstariaV1Settlement is Settlement, AmountDeriver {
     using {StarportLib.getId} for Starport.Loan;
     using FixedPointMathLib for uint256;
 
@@ -51,7 +51,6 @@ contract AstariaV1Settlement  is Settlement, AmountDeriver {
         uint256 endingPrice;
         uint256 window;
     }
-
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                     PUBLIC FUNCTIONS                       */
@@ -80,7 +79,6 @@ contract AstariaV1Settlement  is Settlement, AmountDeriver {
             roundUp: true
         });
     }
-
 
     /**
      * @dev Get the start of the auction
