@@ -13,20 +13,13 @@
 pragma solidity ^0.8.17;
 
 import "test/AstariaV1Test.sol";
-
 import {StarportLib, Actions} from "starport-core/lib/StarportLib.sol";
 import {BaseRecall} from "v1-core/status/BaseRecall.sol";
-import {AstariaV1Lib} from "v1-core/lib/AstariaV1Lib.sol";
-
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
-import {TestERC20Decimals} from "test/util/TestERC20Decimals.sol";
 
 contract TestAstariaV1Loan is AstariaV1Test {
     using FixedPointMathLib for uint256;
     using {StarportLib.getId} for Starport.Loan;
-    using Cast for *;
-
-    Starport.Loan activeLoan;
 
     function testNewLoanERC721CollateralDefaultTermsRecallAuctionFailLenderClaim() public {
         Starport.Terms memory terms = Starport.Terms({
@@ -43,14 +36,10 @@ contract TestAstariaV1Loan is AstariaV1Test {
         BaseRecall.Details memory statusDetails = abi.decode(loan.terms.statusData, (BaseRecall.Details));
         skip(statusDetails.honeymoon);
 
-        uint256 recallerBalanceBefore = ERC20(loan.debt[0].token).balanceOf(recaller.addr);
-        vm.prank(recaller.addr);
+        vm.prank(loan.issuer);
         BaseRecall(address(status)).recall(loan);
 
-        AstariaV1Settlement.Details memory settlementDetails =
-            abi.decode(loan.terms.settlementData, (AstariaV1Settlement.Details));
-
-        skip(statusDetails.recallWindow + settlementDetails.window + 2);
+        skip(statusDetails.recallWindow + 1);
 
         uint256 balanceBefore = ERC20(loan.debt[0].token).balanceOf(lender.addr);
 
@@ -76,11 +65,6 @@ contract TestAstariaV1Loan is AstariaV1Test {
             recipient: address(lender.addr)
         });
 
-        assertEq(
-            ERC20(loan.debt[0].token).balanceOf(recaller.addr),
-            recallerBalanceBefore,
-            "recaller balance should not change"
-        );
         assertEq(ERC20(loan.debt[0].token).balanceOf(lender.addr), balanceBefore, "lender balance should not change");
         assertEq(
             ERC721(loan.collateral[0].token).ownerOf(loan.collateral[0].identifier),
@@ -89,7 +73,7 @@ contract TestAstariaV1Loan is AstariaV1Test {
         );
     }
 
-    function testNewLoanERC721CollateralDefaultTermsRecallAuctionFailLenderClaimRandomFulfiller() public {
+    function testNewLoanERC721CollateralDefaultTermsRecallLenderClaimRandomFulfiller() public {
         Starport.Terms memory terms = Starport.Terms({
             status: address(status),
             settlement: address(settlement),
@@ -105,13 +89,10 @@ contract TestAstariaV1Loan is AstariaV1Test {
         skip(statusDetails.honeymoon);
 
         uint256 recallerBalanceBefore = ERC20(loan.debt[0].token).balanceOf(recaller.addr);
-        vm.prank(recaller.addr);
+        vm.prank(loan.issuer);
         BaseRecall(address(status)).recall(loan);
 
-        AstariaV1Settlement.Details memory settlementDetails =
-            abi.decode(loan.terms.settlementData, (AstariaV1Settlement.Details));
-
-        skip(statusDetails.recallWindow + settlementDetails.window + 2);
+        skip(statusDetails.recallWindow + 1);
 
         uint256 fulfillerBalanceBefore = ERC20(loan.debt[0].token).balanceOf(address(this));
 
@@ -154,166 +135,8 @@ contract TestAstariaV1Loan is AstariaV1Test {
         );
     }
 
-    function testNewLoanCollateral6DecimalsStakeSplit() public {
-        TestERC20Decimals sixDecimals = new TestERC20Decimals("Test20", "TST20", 6);
-
-        {
-            sixDecimals.mint(recaller.addr, 50e6);
-            vm.prank(recaller.addr);
-            sixDecimals.approve(address(status), 50e6);
-
-            sixDecimals.mint(lender.addr, 10_000e6);
-            vm.prank(lender.addr);
-            sixDecimals.approve(address(SP), 5000e6);
-
-            sixDecimals.mint(refinancer.addr, 10_000e6);
-            // vm.prank(refinancer.addr);
-            // sixDecimals.approve(address(SP), 1000e6);
-        }
-        Starport.Loan memory loan;
-        uint256 stake;
-        {
-            BasePricing.Details memory pricingDetails = abi.decode(defaultPricingData, (BasePricing.Details));
-            pricingDetails.decimals = 6;
-            pricingDetails.carryRate = 1e5; // 10%
-            pricingDetails.rate = 1e5; // 10%
-
-            BaseRecall.Details memory statusDetails = abi.decode(defaultStatusData, (BaseRecall.Details));
-            statusDetails.recallMax = 10e6; // 1000%
-            statusDetails.recallerRewardRatio = 1e5; // 10%
-            SpentItem[] memory debt = new SpentItem[](1);
-            debt[0] = SpentItem({
-                itemType: ItemType.ERC20,
-                token: address(sixDecimals),
-                amount: 5000e6,
-                identifier: 0 // 0 for ERC20
-            });
-            SpentItem[] memory collateral = new SpentItem[](1);
-            collateral[0] = _getERC721SpentItem(erc721s[0]);
-
-            Starport.Loan memory originationDetails = _generateOriginationDetails(collateral, debt, lender.addr);
-            originationDetails.terms = Starport.Terms({
-                status: address(status),
-                settlement: address(settlement),
-                pricing: address(pricing),
-                pricingData: abi.encode(pricingDetails),
-                settlementData: defaultSettlementData,
-                statusData: abi.encode(statusDetails)
-            });
-            loan = newLoan(originationDetails, bytes32(msg.sig), bytes32(msg.sig), fulfiller.addr);
-
-            uint256 balanceBefore = sixDecimals.balanceOf(recaller.addr);
-            uint256 recallContractBalanceBefore = sixDecimals.balanceOf(address(status));
-            BaseRecall.Details memory details = abi.decode(loan.terms.statusData, (BaseRecall.Details));
-            vm.warp(block.timestamp + details.honeymoon);
-            vm.startPrank(recaller.addr);
-
-            BaseRecall recallContract = BaseRecall(address(status));
-            recallContract.recall(loan);
-            vm.stopPrank();
-
-            uint256 balanceAfter = sixDecimals.balanceOf(recaller.addr);
-            uint256 recallContractBalanceAfter = sixDecimals.balanceOf(address(status));
-
-            // BasePricing.Details memory pricingDetails = abi.decode(loan.terms.pricingData, (BasePricing.Details));
-            stake = BasePricing(address(pricing)).calculateInterest(
-                details.recallStakeDuration, loan.debt[0].amount, pricingDetails.rate, pricingDetails.decimals
-            );
-            assertEq(balanceBefore - stake, balanceAfter, "Recaller balance not transfered correctly");
-            assertEq(
-                recallContractBalanceBefore + stake,
-                recallContractBalanceAfter,
-                "Balance not transfered to recall contract correctly"
-            );
-        }
-
-        {
-            // refinance with correct terms
-            uint256 newLenderBefore = sixDecimals.balanceOf(refinancer.addr);
-            uint256 oldLenderBefore = sixDecimals.balanceOf(lender.addr);
-            uint256 oldOriginatorBefore = sixDecimals.balanceOf(loan.originator);
-            uint256 recallerBefore = sixDecimals.balanceOf(recaller.addr);
-            uint256 newFullfillerBefore = sixDecimals.balanceOf(address(this));
-            BaseRecall.Details memory details = abi.decode(loan.terms.statusData, (BaseRecall.Details));
-            vm.warp(block.timestamp + (details.recallWindow / 2));
-
-            bytes memory pricingData =
-                abi.encode(BasePricing.Details({rate: 1e4, /* 1% */ carryRate: 1e5, decimals: 6}));
-            {
-                Starport.Loan memory refinancableLoan = getRefinanceDetails(loan, pricingData, refinancer.addr).loan;
-                CaveatEnforcer.SignedCaveats memory refinancerCaveat =
-                    _generateSignedCaveatLender(refinancableLoan, refinancer, bytes32(uint256(1)), true);
-
-                vm.startPrank(refinancer.addr);
-                sixDecimals.approve(address(SP), refinancableLoan.debt[0].amount);
-                vm.stopPrank();
-
-                sixDecimals.approve(address(SP), stake);
-                refinanceLoan(loan, pricingData, address(this), refinancerCaveat, refinancer.addr);
-            }
-
-            BasePricing.Details memory pricingDetails = abi.decode(loan.terms.pricingData, (BasePricing.Details));
-            uint256 interest;
-            {
-                // uint256 delta_t = block.timestamp - loan.start;
-                interest = BasePricing(address(pricing)).calculateInterest(
-                    (block.timestamp - loan.start), loan.debt[0].amount, pricingDetails.rate, pricingDetails.decimals
-                );
-
-                uint256 recallBonus = (stake).mulDiv(1e4, 1e5);
-
-                assertEq(
-                    sixDecimals.balanceOf(lender.addr),
-                    oldLenderBefore + loan.debt[0].amount + recallBonus
-                        + interest.mulDiv(
-                            (10 ** pricingDetails.decimals) - pricingDetails.carryRate, 10 ** pricingDetails.decimals
-                        ),
-                    "Payment to old lender calculated incorrectly"
-                );
-            }
-
-            {
-                uint256 newLenderAfter = sixDecimals.balanceOf(refinancer.addr);
-                assertEq(
-                    newLenderAfter,
-                    newLenderBefore - (loan.debt[0].amount + interest),
-                    "Payment from new lender calculated incorrectly"
-                );
-            }
-            assertEq(
-                recallerBefore,
-                sixDecimals.balanceOf(recaller.addr),
-                "Recaller stake not paid to lender and fulfiller as expected"
-            );
-
-            {
-                assertEq(
-                    sixDecimals.balanceOf(loan.originator),
-                    oldOriginatorBefore + interest.mulDiv(pricingDetails.carryRate, 10 ** pricingDetails.decimals),
-                    "Carry payment to old originator calculated incorrectly"
-                );
-            }
-
-            {
-                assertEq(
-                    sixDecimals.balanceOf(address(this)),
-                    newFullfillerBefore + (stake).mulDivUp(9e4, 1e5),
-                    "New fulfiller did not repay recaller stake correctly"
-                );
-            }
-
-            {
-                uint256 loanId = loan.getId();
-                assertTrue(SP.closed(loanId), "LoanId not properly flipped to inactive after refinance");
-            }
-        }
-        {
-            uint256 recallContractBalanceAfter = sixDecimals.balanceOf(address(status));
-            assertEq(recallContractBalanceAfter, uint256(0), "BaseRecall did get emptied as expected");
-        }
-    }
-
     function testNewLoanERC721CollateralDefaultTermsRecallBase() public {
+        // loan setup
         Starport.Terms memory terms = Starport.Terms({
             status: address(status),
             settlement: address(settlement),
@@ -327,14 +150,14 @@ contract TestAstariaV1Loan is AstariaV1Test {
 
         skip(1);
         {
-            vm.startPrank(recaller.addr);
-            vm.expectRevert(BaseRecall.RecallBeforeHoneymoonExpiry.selector);
             // attempt recall before honeymoon period has ended
+            vm.startPrank(loan.issuer);
+            vm.expectRevert(BaseRecall.RecallBeforeHoneymoonExpiry.selector);
             BaseRecall(address(status)).recall(loan);
             vm.stopPrank();
         }
         {
-            // refinance with before recall is initiated
+            // attempt refinance before recall is initiated
             CaveatEnforcer.SignedCaveats memory lenderCaveat = CaveatEnforcer.SignedCaveats({
                 signature: "",
                 singleUse: true,
@@ -351,53 +174,27 @@ contract TestAstariaV1Loan is AstariaV1Test {
                 refinancer.addr,
                 lenderCaveat,
                 refinancer.addr,
-                abi.encodeWithSelector(Pricing.InvalidRefinance.selector)
+                abi.encodeWithSelector(AstariaV1Pricing.LoanIsNotRecalled.selector)
             );
         }
-        uint256 stake;
+        BaseRecall recallContract = BaseRecall(address(status));
         {
-            uint256 balanceBefore = erc20s[0].balanceOf(recaller.addr);
-            uint256 recallContractBalanceBefore = erc20s[0].balanceOf(address(status));
+            // attempt a recall after the honeymoon
             BaseRecall.Details memory details = abi.decode(loan.terms.statusData, (BaseRecall.Details));
             vm.warp(block.timestamp + details.honeymoon);
-            vm.startPrank(recaller.addr);
-
-            BaseRecall recallContract = BaseRecall(address(status));
+            vm.prank(loan.issuer);
             recallContract.recall(loan);
-            vm.stopPrank();
 
-            uint256 balanceAfter = erc20s[0].balanceOf(recaller.addr);
-            uint256 recallContractBalanceAfter = erc20s[0].balanceOf(address(status));
-
-            BasePricing.Details memory pricingDetails = abi.decode(loan.terms.pricingData, (BasePricing.Details));
-            stake = BasePricing(address(pricing)).calculateInterest(
-                details.recallStakeDuration, loan.debt[0].amount, pricingDetails.rate, pricingDetails.decimals
-            );
-            assertEq(balanceBefore - stake, balanceAfter, "Recaller balance not transfered correctly");
-            assertEq(
-                recallContractBalanceBefore + stake,
-                recallContractBalanceAfter,
-                "Balance not transfered to recall contract correctly"
-            );
-        }
-        {
             uint256 loanId = loan.getId();
-            BaseRecall recallContract = BaseRecall(address(status));
             address recallerAddr;
             uint64 start;
             (recallerAddr, start) = recallContract.recalls(loanId);
 
-            assertEq(recaller.addr, recallerAddr, "Recaller address logged incorrectly");
+            assertEq(loan.issuer, recallerAddr, "Recaller address logged incorrectly");
             assertEq(start, block.timestamp, "Recall start logged incorrectly");
         }
         {
-            BaseRecall recallContract = BaseRecall(address(status));
-            vm.expectRevert(BaseRecall.LoanHasNotBeenRefinanced.selector);
-            // attempt a withdraw without the loan being refinanced
-            recallContract.withdraw(loan, payable(address(this)));
-        }
-        {
-            // refinance with incorrect terms
+            // attempt refinance with incorrect terms
             CaveatEnforcer.SignedCaveats memory lenderCaveat = CaveatEnforcer.SignedCaveats({
                 signature: "",
                 singleUse: true,
@@ -418,11 +215,10 @@ contract TestAstariaV1Loan is AstariaV1Test {
             );
         }
         {
-            // refinance with correct terms
+            // attempt refinance with correct terms
             uint256 newLenderBefore = erc20s[0].balanceOf(refinancer.addr);
             uint256 oldLenderBefore = erc20s[0].balanceOf(lender.addr);
             uint256 oldOriginatorBefore = erc20s[0].balanceOf(loan.originator);
-            uint256 recallerBefore = erc20s[0].balanceOf(recaller.addr);
             uint256 newFullfillerBefore = erc20s[0].balanceOf(address(this));
             BaseRecall.Details memory details = abi.decode(loan.terms.statusData, (BaseRecall.Details));
             vm.warp(block.timestamp + (details.recallWindow / 2));
@@ -430,6 +226,7 @@ contract TestAstariaV1Loan is AstariaV1Test {
             bytes memory pricingData =
                 abi.encode(BasePricing.Details({rate: details.recallMax / 2, carryRate: 0, decimals: 18}));
             {
+                // refinance the loan address(this) is the fulfiller and refinancer.addr is the lender
                 Starport.Loan memory refinancableLoan = getRefinanceDetails(loan, pricingData, refinancer.addr).loan;
                 CaveatEnforcer.SignedCaveats memory refinancerCaveat =
                     _generateSignedCaveatLender(refinancableLoan, refinancer, bytes32(uint256(1)), true);
@@ -438,7 +235,6 @@ contract TestAstariaV1Loan is AstariaV1Test {
                 erc20s[0].approve(address(SP), refinancableLoan.debt[0].amount);
                 vm.stopPrank();
 
-                erc20s[0].approve(address(SP), stake);
                 refinanceLoan(loan, pricingData, address(this), refinancerCaveat, refinancer.addr);
             }
 
@@ -466,9 +262,6 @@ contract TestAstariaV1Loan is AstariaV1Test {
                     "Payment from new lender calculated incorrectly"
                 );
             }
-            assertEq(
-                recallerBefore + stake, erc20s[0].balanceOf(recaller.addr), "Recaller did not recover stake as expected"
-            );
 
             {
                 assertEq(
@@ -491,265 +284,11 @@ contract TestAstariaV1Loan is AstariaV1Test {
                 assertTrue(SP.closed(loanId), "LoanId not properly flipped to inactive after refinance");
             }
         }
-        {
-            uint256 recallContractBalanceAfter = erc20s[0].balanceOf(address(status));
-            assertEq(recallContractBalanceAfter, uint256(0), "BaseRecall did get emptied as expected");
-        }
     }
 
-    // lender is recaller, liquidation amount is 0
-    function testNewLoanERC721CollateralDefaultTermsRecallLender() public {
-        Starport.Terms memory terms = Starport.Terms({
-            status: address(status),
-            settlement: address(settlement),
-            pricing: address(pricing),
-            pricingData: defaultPricingData,
-            settlementData: defaultSettlementData,
-            statusData: defaultStatusData
-        });
-        Starport.Loan memory loan =
-            _createLoan721Collateral20Debt({lender: lender.addr, borrowAmount: 1e18, terms: terms});
-
-        uint256 stake;
-        {
-            uint256 balanceBefore = erc20s[0].balanceOf(lender.addr);
-            uint256 recallContractBalanceBefore = erc20s[0].balanceOf(address(status));
-            BaseRecall.Details memory details = abi.decode(loan.terms.statusData, (BaseRecall.Details));
-            vm.warp(block.timestamp + details.honeymoon);
-            vm.startPrank(lender.addr);
-            BaseRecall recallContract = BaseRecall(address(status));
-            erc20s[0].approve(loan.terms.status, 10e18);
-            recallContract.recall(loan);
-            vm.stopPrank();
-
-            BasePricing.Details memory pricingDetails = abi.decode(loan.terms.pricingData, (BasePricing.Details));
-            stake = BasePricing(address(pricing)).calculateInterest(
-                details.recallStakeDuration, loan.debt[0].amount, pricingDetails.rate, pricingDetails.decimals
-            );
-            // lender is not required to provide a stake to recall
-            assertEq(balanceBefore, erc20s[0].balanceOf(lender.addr), "Recaller balance not transfered correctly");
-            assertEq(
-                recallContractBalanceBefore,
-                erc20s[0].balanceOf(address(status)),
-                "Balance not transfered to recall contract correctly"
-            );
-        }
-
-        {
-            BaseRecall.Details memory details = abi.decode(loan.terms.statusData, (BaseRecall.Details));
-            // warp past the end of the recall window
-            vm.warp(block.timestamp + details.recallWindow + 1);
-
-            OfferItem[] memory repayOffering = new OfferItem[](loan.collateral.length);
-            uint256 i = 0;
-            for (; i < loan.collateral.length;) {
-                repayOffering[i] = OfferItem({
-                    itemType: loan.collateral[i].itemType,
-                    token: address(loan.collateral[i].token),
-                    identifierOrCriteria: loan.collateral[i].identifier,
-                    endAmount: loan.collateral[i].itemType != ItemType.ERC721 ? loan.collateral[i].amount : 1,
-                    startAmount: loan.collateral[i].itemType != ItemType.ERC721 ? loan.collateral[i].amount : 1
-                });
-                unchecked {
-                    ++i;
-                }
-            }
-            (ReceivedItem[] memory settlementConsideration, address restricted) =
-                Settlement(loan.terms.settlement).getSettlementConsideration(loan);
-
-            assertEq(
-                settlementConsideration.length, 0, "Settlement consideration for a recalling Lender should be zero"
-            );
-            assertEq(restricted, lender.addr, "SettlementConsideration should be restricted to the lender");
-            ConsiderationItem[] memory consider = new ConsiderationItem[](settlementConsideration.length);
-            i = 0;
-            for (; i < settlementConsideration.length;) {
-                consider[i].token = settlementConsideration[i].token;
-                consider[i].itemType = settlementConsideration[i].itemType;
-                consider[i].identifierOrCriteria = settlementConsideration[i].identifier;
-                consider[i].startAmount = settlementConsideration[i].amount;
-                consider[i].endAmount = settlementConsideration[i].amount;
-                consider[i].recipient = settlementConsideration[i].recipient;
-                unchecked {
-                    ++i;
-                }
-            }
-
-            vm.startPrank(lender.addr);
-            OrderParameters memory op = _buildContractOrder(address(loan.custodian), repayOffering, consider);
-
-            AdvancedOrder memory settlementOrder = AdvancedOrder({
-                numerator: 1,
-                denominator: 1,
-                parameters: op,
-                extraData: abi.encode(Custodian.Command(Actions.Settlement, loan, "")),
-                signature: ""
-            });
-
-            consideration.fulfillAdvancedOrder({
-                advancedOrder: settlementOrder,
-                criteriaResolvers: new CriteriaResolver[](0),
-                fulfillerConduitKey: bytes32(0),
-                recipient: address(0)
-            });
-            vm.stopPrank();
-        }
-        {
-            address owner = erc721s[0].ownerOf(1);
-            assertEq(owner, lender.addr, "Lender should be the owner of the NFT after settlement");
-        }
-    }
-
-    // recaller is not the lender, liquidation amount is a dutch auction
-    function testNewLoanERC721CollateralDefaultTermsRecallLiquidation() public {
-        Starport.Terms memory terms = Starport.Terms({
-            status: address(status),
-            settlement: address(settlement),
-            pricing: address(pricing),
-            pricingData: defaultPricingData,
-            settlementData: defaultSettlementData,
-            statusData: defaultStatusData
-        });
-        Starport.Loan memory loan =
-            _createLoan721Collateral20Debt({lender: lender.addr, borrowAmount: 1e18, terms: terms});
-        // uint256 loanId = loan.getId();
-
-        loan.toStorage(activeLoan);
-        uint256 elapsedTime;
-        uint256 stake;
-        uint256 recallerBalanceBefore = erc20s[0].balanceOf(recaller.addr);
-        {
-            uint256 recallContractBalanceBefore = erc20s[0].balanceOf(address(status));
-            BaseRecall.Details memory details = abi.decode(loan.terms.statusData, (BaseRecall.Details));
-            vm.warp(block.timestamp + details.honeymoon);
-            elapsedTime += details.honeymoon;
-            vm.startPrank(recaller.addr);
-
-            BaseRecall recallContract = BaseRecall(address(status));
-            recallContract.recall(loan);
-            vm.stopPrank();
-
-            uint256 balanceAfter = erc20s[0].balanceOf(recaller.addr);
-            uint256 recallContractBalanceAfter = erc20s[0].balanceOf(address(status));
-
-            BasePricing.Details memory pricingDetails = abi.decode(loan.terms.pricingData, (BasePricing.Details));
-            stake = BasePricing(address(pricing)).calculateInterest(
-                details.recallStakeDuration, loan.debt[0].amount, pricingDetails.rate, pricingDetails.decimals
-            );
-            assertEq(recallerBalanceBefore - stake, balanceAfter, "Recaller balance not transfered correctly");
-            assertEq(
-                recallContractBalanceBefore + stake,
-                recallContractBalanceAfter,
-                "Balance not transfered to recall contract correctly"
-            );
-        }
-
-        {
-            BaseRecall.Details memory details = abi.decode(loan.terms.statusData, (BaseRecall.Details));
-            // warp past the end of the recall window
-            vm.warp(block.timestamp + details.recallWindow + 1);
-            elapsedTime += (details.recallWindow + 1);
-            OfferItem[] memory repayOffering = new OfferItem[](loan.collateral.length);
-            uint256 i = 0;
-            for (; i < loan.collateral.length;) {
-                repayOffering[i] = OfferItem({
-                    itemType: loan.collateral[i].itemType,
-                    token: address(loan.collateral[i].token),
-                    identifierOrCriteria: loan.collateral[i].identifier,
-                    endAmount: loan.collateral[i].itemType != ItemType.ERC721 ? loan.collateral[i].amount : 1,
-                    startAmount: loan.collateral[i].itemType != ItemType.ERC721 ? loan.collateral[i].amount : 1
-                });
-                unchecked {
-                    ++i;
-                }
-            }
-            (ReceivedItem[] memory settlementConsideration, address restricted) =
-                Settlement(loan.terms.settlement).getSettlementConsideration(loan);
-
-            assertEq(
-                settlementConsideration.length,
-                3,
-                "Settlement consideration length for a dutch auction should be 3 (carry, recaller, and the lender)"
-            );
-            assertEq(restricted, address(0), "SettlementConsideration should be unrestricted");
-            AdditionalTransfer[] memory extraPayment;
-            uint256 recallerReward;
-            {
-                BasePricing.Details memory pricingDetails = abi.decode(loan.terms.pricingData, (BasePricing.Details));
-                uint256 interest = AstariaV1Lib.calculateCompoundInterest(
-                    elapsedTime, loan.debt[0].amount, pricingDetails.rate, pricingDetails.decimals
-                );
-                uint256 carry = interest.mulWad(pricingDetails.carryRate);
-                uint256 settlementPrice = 500 ether - carry;
-                recallerReward = settlementPrice.mulWad(10e16);
-                assertEq(settlementConsideration[0].amount, carry, "Settlement consideration for carry incorrect");
-                assertEq(
-                    settlementConsideration[1].amount, recallerReward, "Settlement consideration for recaller incorrect"
-                );
-                assertEq(
-                    settlementConsideration[2].amount,
-                    settlementPrice - recallerReward,
-                    "Settlement consideration for lender incorrect"
-                );
-                extraPayment = AstariaV1Status(activeLoan.terms.status).generateRecallConsideration(
-                    activeLoan, 0, activeLoan.terms.status, address(this)
-                );
-            }
-            ConsiderationItem[] memory consider = new ConsiderationItem[](settlementConsideration.length);
-            i = 0;
-            for (; i < settlementConsideration.length;) {
-                consider[i].token = settlementConsideration[i].token;
-                consider[i].itemType = settlementConsideration[i].itemType;
-                consider[i].identifierOrCriteria = settlementConsideration[i].identifier;
-                consider[i].startAmount = settlementConsideration[i].amount;
-                consider[i].endAmount = settlementConsideration[i].amount;
-                consider[i].recipient = settlementConsideration[i].recipient;
-                unchecked {
-                    ++i;
-                }
-            }
-
-            uint256 balanceBefore = ERC20(loan.debt[0].token).balanceOf(address(this));
-            OrderParameters memory op = _buildContractOrder(address(loan.custodian), repayOffering, consider);
-
-            AdvancedOrder memory settlementOrder = AdvancedOrder({
-                numerator: 1,
-                denominator: 1,
-                parameters: op,
-                extraData: abi.encode(Custodian.Command(Actions.Settlement, activeLoan, "")),
-                signature: ""
-            });
-
-            consideration.fulfillAdvancedOrder({
-                advancedOrder: settlementOrder,
-                criteriaResolvers: new CriteriaResolver[](0),
-                fulfillerConduitKey: bytes32(0),
-                recipient: address(0)
-            });
-
-            assertEq(
-                recallerBalanceBefore + recallerReward,
-                erc20s[0].balanceOf(recaller.addr),
-                "Recaller balance not transfered correctly"
-            );
-
-            assertEq(
-                balanceBefore - 500 ether,
-                erc20s[0].balanceOf(address(this)),
-                "balance of buyer not decremented correctly"
-            );
-            assertEq(0, erc20s[0].balanceOf(address(status)), "Balance not transfered from recall contract correctly");
-
-            assertEq(
-                erc721s[0].ownerOf(1), address(this), "Test address should be the owner of the NFT after settlement"
-            );
-        }
-    }
-
-    function testNewLoanERC721CollateralPermissionlessRecallBlockedRecaller() public {
+    function testNewLoanERC721CollateralRecallerNotBorrowerOrLender() public {
         BaseRecall.Details memory statusDetails = abi.decode(defaultStatusData, (BaseRecall.Details));
 
-        statusDetails.recallStakeDuration = 0;
         Starport.Terms memory terms = Starport.Terms({
             status: address(status),
             settlement: address(settlement),
@@ -761,7 +300,6 @@ contract TestAstariaV1Loan is AstariaV1Test {
         Starport.Loan memory loan =
             _createLoan721Collateral20Debt({lender: lender.addr, borrowAmount: 1e18, terms: terms});
 
-        loan.toStorage(activeLoan);
         uint256 elapsedTime;
         {
             vm.warp(block.timestamp + statusDetails.honeymoon);
@@ -769,16 +307,14 @@ contract TestAstariaV1Loan is AstariaV1Test {
             vm.startPrank(recaller.addr);
 
             vm.expectRevert(BaseRecall.InvalidRecaller.selector);
-            BaseRecall recallContract = BaseRecall(address(status));
-            recallContract.recall(loan);
+            BaseRecall(address(status)).recall(loan);
             vm.stopPrank();
         }
     }
 
-    function testNewLoanERC721CollateralPermissionlessRecallBlockedLender() public {
+    function testNewLoanERC721CollateralRecallNotBlockedLender() public {
         BaseRecall.Details memory statusDetails = abi.decode(defaultStatusData, (BaseRecall.Details));
 
-        statusDetails.recallStakeDuration = 0;
         Starport.Terms memory terms = Starport.Terms({
             status: address(status),
             settlement: address(settlement),
@@ -790,12 +326,11 @@ contract TestAstariaV1Loan is AstariaV1Test {
         Starport.Loan memory loan =
             _createLoan721Collateral20Debt({lender: lender.addr, borrowAmount: 1e18, terms: terms});
 
-        loan.toStorage(activeLoan);
         uint256 elapsedTime;
         {
             vm.warp(block.timestamp + statusDetails.honeymoon);
             elapsedTime += statusDetails.honeymoon;
-            vm.startPrank(lender.addr);
+            vm.startPrank(loan.issuer);
 
             BaseRecall recallContract = BaseRecall(address(status));
             recallContract.recall(loan);
@@ -803,10 +338,9 @@ contract TestAstariaV1Loan is AstariaV1Test {
         }
     }
 
-    function testNewLoanERC721CollateralPermissionlessRecallBlockedBorrower() public {
+    function testNewLoanERC721CollateralRecallNotBlockedBorrower() public {
         BaseRecall.Details memory statusDetails = abi.decode(defaultStatusData, (BaseRecall.Details));
 
-        statusDetails.recallStakeDuration = 0;
         Starport.Terms memory terms = Starport.Terms({
             status: address(status),
             settlement: address(settlement),
@@ -818,12 +352,11 @@ contract TestAstariaV1Loan is AstariaV1Test {
         Starport.Loan memory loan =
             _createLoan721Collateral20Debt({lender: lender.addr, borrowAmount: 1e18, terms: terms});
 
-        loan.toStorage(activeLoan);
         uint256 elapsedTime;
         {
             vm.warp(block.timestamp + statusDetails.honeymoon);
             elapsedTime += statusDetails.honeymoon;
-            vm.startPrank(borrower.addr);
+            vm.startPrank(loan.borrower);
 
             BaseRecall recallContract = BaseRecall(address(status));
             recallContract.recall(loan);

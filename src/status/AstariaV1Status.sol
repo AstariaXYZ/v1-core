@@ -14,7 +14,6 @@ pragma solidity ^0.8.17;
 
 import {Starport} from "starport-core/Starport.sol";
 import {StarportLib} from "starport-core/lib/StarportLib.sol";
-
 import {Validation} from "starport-core/lib/Validation.sol";
 import {BasePricing} from "v1-core/pricing/BasePricing.sol";
 import {BaseRecall} from "v1-core/status/BaseRecall.sol";
@@ -22,8 +21,6 @@ import {BaseStatus} from "v1-core/status/BaseStatus.sol";
 
 contract AstariaV1Status is BaseStatus, BaseRecall {
     using {StarportLib.getId} for Starport.Loan;
-
-    mapping(address => bool) public isValidPricing;
 
     error InvalidPricingContract();
 
@@ -58,24 +55,10 @@ contract AstariaV1Status is BaseStatus, BaseRecall {
         Details memory details = abi.decode(loan.terms.statusData, (Details));
         BasePricing.Details memory pDetails = abi.decode(loan.terms.pricingData, (BasePricing.Details));
         bool valid = true;
-        if (
-            details.recallerRewardRatio > 10 ** pDetails.decimals || details.recallMax > 10 * 10 ** pDetails.decimals
-                || !isValidPricing[loan.terms.pricing] || details.recallMax == 0 || details.recallWindow == 0
-        ) {
+        if (details.recallMax > 10 * 10 ** pDetails.decimals || details.recallMax == 0 || details.recallWindow == 0) {
             valid = false;
         }
 
         return valid ? Validation.validate.selector : bytes4(0xFFFFFFFF);
-    }
-
-    // @inheritdoc BaseRecall
-    function validatePricingContract(address pricingContract) internal virtual override {
-        if (!isValidPricing[pricingContract]) {
-            revert InvalidPricingContract();
-        }
-    }
-
-    function setValidPricing(address pricing, bool valid) external onlyOwner {
-        isValidPricing[pricing] = valid;
     }
 }

@@ -9,7 +9,6 @@ import {
     CaveatEnforcer,
     StarportTest,
     AdditionalTransfer,
-    LenderEnforcer,
     Pricing
 } from "starport-test/fuzz-testing/TestFuzzStarport.sol";
 import {Starport} from "starport-core/Starport.sol";
@@ -182,48 +181,25 @@ contract TestFuzzV1 is AstariaV1Test, TestFuzzStarport {
         }
     }
 
+    //skips to after recall period
     function _skipToSettlement(Starport.Loan memory goodLoan) internal virtual override {
-        BasePricing.Details memory pricingDetails = abi.decode(goodLoan.terms.pricingData, (BasePricing.Details));
         BaseRecall.Details memory details = abi.decode(goodLoan.terms.statusData, (BaseRecall.Details));
-        uint256 baseAdjustment = (10 ** pricingDetails.decimals);
-        uint256 proportion = baseAdjustment;
         uint256 delta_t = details.honeymoon + 1;
         skip(delta_t);
-        SpentItem memory debtItem = goodLoan.debt[0];
-        uint256 stake = BasePricing(goodLoan.terms.pricing).calculateInterest(
-            delta_t, debtItem.amount, pricingDetails.rate, pricingDetails.decimals
-        );
-        uint256 mintNeeded = (stake * proportion) / baseAdjustment;
-        vm.startPrank(recaller.addr);
-        erc20s[1].approve(address(goodLoan.terms.status), type(uint256).max);
-        erc20s[1].mint(address(recaller.addr), mintNeeded);
-
+        vm.prank(lender.addr);
         BaseRecall(goodLoan.terms.status).recall(goodLoan);
         vm.stopPrank();
-        AstariaV1Settlement.Details memory settlementDetails =
-            abi.decode(goodLoan.terms.settlementData, (AstariaV1Settlement.Details));
 
-        skip(_bound(0, details.recallWindow + 1, details.recallWindow + 1 + settlementDetails.window - 1));
+        skip(_boundMin(0, details.recallWindow + 1));
     }
 
     function _skipToRefinance(Starport.Loan memory goodLoan) internal virtual {
-        BasePricing.Details memory pricingDetails = abi.decode(goodLoan.terms.pricingData, (BasePricing.Details));
         BaseRecall.Details memory details = abi.decode(goodLoan.terms.statusData, (BaseRecall.Details));
-        uint256 baseAdjustment = (10 ** pricingDetails.decimals);
-        uint256 proportion = baseAdjustment;
         uint256 delta_t = details.honeymoon + 1;
         skip(delta_t);
-        SpentItem memory debtItem = goodLoan.debt[0];
-        uint256 stake = BasePricing(goodLoan.terms.pricing).calculateInterest(
-            delta_t, debtItem.amount, pricingDetails.rate, pricingDetails.decimals
-        );
-        uint256 mintNeeded = (stake * proportion) / baseAdjustment;
-        vm.startPrank(recaller.addr);
-        erc20s[1].approve(address(goodLoan.terms.status), type(uint256).max);
-        erc20s[1].mint(address(recaller.addr), mintNeeded);
 
+        vm.prank(lender.addr);
         BaseRecall(goodLoan.terms.status).recall(goodLoan);
-        vm.stopPrank();
 
         skip(_bound(0, details.recallWindow / 2, details.recallWindow - 1));
         console.log("skipped inside recall");
@@ -238,18 +214,10 @@ contract TestFuzzV1 is AstariaV1Test, TestFuzzStarport {
             BaseRecall.Details({
                 honeymoon: _boundMax(1 days, 365 days),
                 recallWindow: _boundMax(1 days, 365 days),
-                recallStakeDuration: _boundMax(1 days, 365 days),
-                recallMax: _bound(0, rate, 10e18),
-                recallerRewardRatio: _boundMax(0, 1e18)
+                recallMax: _bound(0, rate, 10e18)
             })
         );
-        dataBounds.settlementBoundData = abi.encode(
-            AstariaV1Settlement.Details({
-                startingPrice: _boundMax(1, 1e18),
-                endingPrice: _boundMax(1, 1e18),
-                window: _boundMax(1 days, 365 days)
-            })
-        );
+        dataBounds.settlementBoundData = "";
         return fuzzNewLoanOrigination(params, abi.encode(dataBounds));
     }
 
@@ -343,11 +311,10 @@ contract TestFuzzV1 is AstariaV1Test, TestFuzzStarport {
             vm.prank(address(account.addr));
             erc20s[1].approve(address(SP), type(uint256).max);
             assertEq(address(goodLoan2.debt[0].token), address(erc20s[1]), "not equal");
-            vm.startPrank(refiFulfiller);
-            erc20s[1].mint(address(refiFulfiller), additionalTransfers[0].amount);
-            erc20s[1].approve(address(SP), type(uint256).max);
+            assertEq(additionalTransfers.length, 0, "additional transfers not empty");
+
+            vm.prank(refiFulfiller);
             SP.refinance(account.addr, lenderCaveat, goodLoan2, abi.encode(newPricingDetails), "");
-            vm.stopPrank();
         }
     }
 }

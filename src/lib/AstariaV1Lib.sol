@@ -12,13 +12,6 @@
 
 pragma solidity ^0.8.17;
 
-import {Starport} from "starport-core/Starport.sol";
-import {BasePricing} from "v1-core/pricing/BasePricing.sol";
-import {StarportLib} from "starport-core/lib/StarportLib.sol";
-import "forge-std/console2.sol";
-
-import {BaseRecall} from "v1-core/status/BaseRecall.sol";
-
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
 
 library AstariaV1Lib {
@@ -36,7 +29,6 @@ library AstariaV1Lib {
     /*                       CUSTOM ERRORS                        */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
-    error InterestAccrualRoundingMinimum();
     error UnsupportedDecimalValue();
     error RateExceedMaxRecallRate();
     error RateTooLow();
@@ -89,7 +81,7 @@ library AstariaV1Lib {
 
     function getBaseRecallMax(bytes memory statusData) internal pure returns (uint256 recallMax) {
         assembly ("memory-safe") {
-            recallMax := mload(add(0x80, statusData))
+            recallMax := mload(add(0x60, statusData))
         }
     }
 
