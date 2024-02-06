@@ -12,17 +12,11 @@
 
 pragma solidity ^0.8.17;
 
-import {Starport, SpentItem} from "starport-core/Starport.sol";
-import {BasePricing} from "v1-core/pricing/BasePricing.sol";
-import {AdditionalTransfer} from "starport-core/lib/StarportLib.sol";
+import {Starport} from "starport-core/Starport.sol";
 import {StarportLib} from "starport-core/lib/StarportLib.sol";
 import {PausableNonReentrant} from "starport-core/lib/PausableNonReentrant.sol";
 
-import {ItemType} from "seaport-types/src/lib/ConsiderationEnums.sol";
-import {ConsiderationInterface} from "seaport-types/src/interfaces/ConsiderationInterface.sol";
-import {ERC20} from "solady/src/tokens/ERC20.sol";
 import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
-import {SafeTransferLib} from "solady/src/utils/SafeTransferLib.sol";
 
 abstract contract BaseRecall is PausableNonReentrant {
     using FixedPointMathLib for uint256;
@@ -33,7 +27,6 @@ abstract contract BaseRecall is PausableNonReentrant {
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     event Recalled(uint256 loanId, address recaller, uint256 end);
-    event Withdraw(uint256 loanId, address withdrawer);
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                  CONSTANTS AND IMMUTABLES                  */
@@ -51,15 +44,9 @@ abstract contract BaseRecall is PausableNonReentrant {
     /*                       CUSTOM ERRORS                        */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
-    error AdditionalTransferError();
-    error InvalidItemType();
-    error InvalidStakeType();
-    error InvalidWithdraw();
     error LoanDoesNotExist();
-    error LoanHasNotBeenRefinanced();
     error RecallAlreadyExists();
     error RecallBeforeHoneymoonExpiry();
-    error WithdrawDoesNotExist();
     error InvalidRecaller();
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
@@ -71,12 +58,8 @@ abstract contract BaseRecall is PausableNonReentrant {
         uint256 honeymoon;
         // Period for which the recall is active
         uint256 recallWindow;
-        // Days of interest a recaller must stake
-        uint256 recallStakeDuration;
         // Maximum rate of the recall before failure
         uint256 recallMax;
-        // Ratio the recaller gets at liquidation (10 ** decimals, 100%, 1.0)
-        uint256 recallerRewardRatio;
     }
 
     struct Recall {
@@ -111,18 +94,13 @@ abstract contract BaseRecall is PausableNonReentrant {
     }
 
     /**
-     * @dev Implement to validate the pricing contract.
-     * @dev Malicious pricing contracts can lie about the withdrawable recall amount.
-     * @dev This function should revert if the pricing contract is invalid.
-     * @param pricingContract      The pricing contract to validate
-     */
-    function validatePricingContract(address pricingContract) internal virtual;
-
-    /**
      * @dev Recalls a loan
-     * @param loan      The loan to recall
+     * @param loan The loan to recall
      */
     function recall(Starport.Loan calldata loan) external pausableNonReentrant {
+        if (msg.sender != loan.issuer && msg.sender != loan.borrower) {
+            revert InvalidRecaller();
+        }
         Details memory details = abi.decode(loan.terms.statusData, (Details));
 
         if ((loan.start + details.honeymoon) > block.timestamp) {
@@ -138,137 +116,8 @@ abstract contract BaseRecall is PausableNonReentrant {
             revert RecallAlreadyExists();
         }
 
-        validatePricingContract(loan.terms.pricing);
-
-        // disallow permissionless recall when the details.recallStakeDuration is 0
-        if (details.recallStakeDuration == 0 && msg.sender != loan.issuer && msg.sender != loan.borrower) {
-            revert InvalidRecaller();
-        }
-        AdditionalTransfer[] memory recallConsideration = _generateRecallConsideration(
-            msg.sender, loan, 0, details.recallStakeDuration, 0, msg.sender, payable(address(this))
-        );
         recalls[loanId] = Recall(payable(msg.sender), uint64(block.timestamp));
 
         emit Recalled(loanId, msg.sender, block.timestamp + details.recallWindow);
-
-        if (recallConsideration.length > 0) {
-            StarportLib.transferAdditionalTransfers(recallConsideration);
-        }
-    }
-
-    /**
-     * @dev Withdraws the recall stake from the contract
-     * @param loan      The loan to withdraw the recall stake from
-     * @param receiver  The address to receive the recall stake
-     */
-    function withdraw(Starport.Loan calldata loan, address receiver) external {
-        uint256 loanId = loan.getId();
-
-        // Loan has not been refinanced, loan is still active. SP.loanId changes on refinance
-        if (SP.open(loanId)) {
-            revert LoanHasNotBeenRefinanced();
-        }
-
-        validatePricingContract(loan.terms.pricing);
-
-        Recall storage recall = recalls[loanId];
-        address recaller = recall.recaller;
-        // Ensure that a recall exists for the provided loanId, ensure that the recall
-        if (recall.start == 0 || recaller == address(0)) {
-            revert WithdrawDoesNotExist();
-        }
-
-        delete recalls[loanId];
-
-        Details memory details = abi.decode(loan.terms.statusData, (Details));
-        AdditionalTransfer[] memory recallConsideration =
-            _generateRecallConsideration(recaller, loan, 0, details.recallStakeDuration, 0, address(this), receiver);
-
-        if (recallConsideration.length > 0) {
-            _withdrawRecallStake(recallConsideration);
-        }
-
-        emit Withdraw(loanId, receiver);
-    }
-
-    /**
-     * @dev Generates the consideration for a recall
-     * @param loan The loan to generate the consideration for
-     * @param proportion The proportion of the recall to generate the consideration for
-     * @param from The address to transfer the tokens from
-     * @param to The address to transfer the tokens to
-     * @return consideration The consideration for the recall
-     */
-    function generateRecallConsideration(Starport.Loan calldata loan, uint256 proportion, address from, address to)
-        external
-        view
-        returns (AdditionalTransfer[] memory consideration)
-    {
-        Details memory details = abi.decode(loan.terms.statusData, (Details));
-        uint256 loanId = loan.getId();
-        return _generateRecallConsideration(
-            recalls[loanId].recaller, loan, 0, details.recallStakeDuration, proportion, from, to
-        );
-    }
-
-    function _generateRecallConsideration(
-        address recaller,
-        Starport.Loan calldata loan,
-        uint256 start,
-        uint256 end,
-        uint256 proportion,
-        address from,
-        address to
-    ) internal pure returns (AdditionalTransfer[] memory additionalTransfers) {
-        if (loan.issuer != recaller && loan.borrower != recaller) {
-            additionalTransfers = new AdditionalTransfer[](loan.debt.length);
-
-            uint256 delta_t = end - start;
-            BasePricing.Details memory details = abi.decode(loan.terms.pricingData, (BasePricing.Details));
-            uint256 baseAdjustment = (10 ** details.decimals);
-            proportion = baseAdjustment - proportion;
-            for (uint256 i; i < additionalTransfers.length;) {
-                SpentItem memory debtItem = loan.debt[i];
-                uint256 stake = BasePricing(loan.terms.pricing).calculateInterest(
-                    delta_t, debtItem.amount, details.rate, details.decimals
-                );
-                additionalTransfers[i] = AdditionalTransfer({
-                    itemType: debtItem.itemType,
-                    identifier: debtItem.identifier,
-                    amount: (stake * proportion) / baseAdjustment,
-                    token: debtItem.token,
-                    from: from,
-                    to: to
-                });
-                unchecked {
-                    ++i;
-                }
-            }
-        } else {
-            additionalTransfers = new AdditionalTransfer[](0);
-        }
-    }
-
-    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
-    /*                    INTERNAL FUNCTIONS                      */
-    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
-
-    /**
-     * @dev Withdraws the recall stake from the contract
-     * @param transfers The transfers to make
-     */
-    function _withdrawRecallStake(AdditionalTransfer[] memory transfers) internal {
-        uint256 i = 0;
-        for (i; i < transfers.length;) {
-            AdditionalTransfer memory transfer = transfers[i];
-            if (transfer.itemType != ItemType.ERC20) {
-                revert InvalidItemType();
-            }
-            SafeTransferLib.safeTransfer(transfer.token, transfer.to, transfer.amount);
-
-            unchecked {
-                ++i;
-            }
-        }
     }
 }

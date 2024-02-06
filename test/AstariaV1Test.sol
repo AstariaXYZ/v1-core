@@ -33,8 +33,6 @@ contract AstariaV1Test is StarportTest {
 
         recaller = makeAndAllocateAccount("recaller");
 
-        // erc20s[1].mint(recaller.addr, 10000);
-
         pricing = new AstariaV1Pricing(SP);
         vm.label(address(pricing), "V1Pricing");
         settlement = new AstariaV1Settlement(SP);
@@ -42,7 +40,6 @@ contract AstariaV1Test is StarportTest {
 
         status = new AstariaV1Status(SP, address(this));
         vm.label(address(status), "V1Status");
-        AstariaV1Status(address(status)).setValidPricing(address(pricing), true);
 
         lenderEnforcer = new AstariaV1LenderEnforcer();
         vm.label(address(lenderEnforcer), "V1LenderEnforcer");
@@ -58,17 +55,14 @@ contract AstariaV1Test is StarportTest {
             BasePricing.Details({carryRate: (uint256(1e16) * 10), rate: (uint256(1e16) * 150), decimals: 18})
         );
 
-        // defaultSettlementData = new bytes(0);
+        defaultSettlementData = new bytes(0);
 
         defaultStatusData = abi.encode(
             BaseRecall.Details({
                 honeymoon: 1 days,
                 recallWindow: 3 days,
-                recallStakeDuration: 30 days,
                 // 1000% APR
-                recallMax: (uint256(1e16) * 1000),
-                // 10%, 0.1
-                recallerRewardRatio: uint256(1e16) * 10
+                recallMax: (uint256(1e16) * 1000)
             })
         );
     }
@@ -96,7 +90,6 @@ contract AstariaV1Test is StarportTest {
     }
 
     // loan.borrower and signer.addr could be mismatched
-
     function _generateSignedCaveatBorrower(Starport.Loan memory loan, Account memory signer, bytes32 salt)
         public
         view
@@ -121,7 +114,6 @@ contract AstariaV1Test is StarportTest {
     }
 
     // loan.issuer and signer.addr could be mismatched
-
     function _generateSignedCaveatLender(
         Starport.Loan memory loan,
         Account memory signer,

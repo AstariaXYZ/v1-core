@@ -13,28 +13,24 @@
 pragma solidity ^0.8.17;
 
 import {Starport} from "starport-core/Starport.sol";
-
 import {Pricing} from "starport-core/pricing/Pricing.sol";
 import {BasePricing} from "v1-core/pricing/BasePricing.sol";
 import {StarportLib, AdditionalTransfer} from "starport-core/lib/StarportLib.sol";
+import {BasePricing} from "v1-core/pricing/BasePricing.sol";
+import {Validation} from "starport-core/lib/Validation.sol";
 
-import {CompoundInterestPricing} from "v1-core/pricing/CompoundInterestPricing.sol";
 import {AstariaV1Status} from "v1-core/status/AstariaV1Status.sol";
 import {AstariaV1Lib} from "v1-core/lib/AstariaV1Lib.sol";
 
 import {SpentItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
-import {FixedPointMathLib} from "solady/src/utils/FixedPointMathLib.sol";
-import {Validation} from "starport-core/lib/Validation.sol";
 
-contract AstariaV1Pricing is CompoundInterestPricing {
-    using FixedPointMathLib for uint256;
-    using {StarportLib.getId} for Starport.Loan;
-
+contract AstariaV1Pricing is BasePricing {
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                       CUSTOM ERRORS                        */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     error InsufficientRefinance();
+    error LoanIsNotRecalled();
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                        CONSTRUCTOR                         */
@@ -69,29 +65,13 @@ contract AstariaV1Pricing is CompoundInterestPricing {
             AstariaV1Status status = AstariaV1Status(loan.terms.status);
 
             if (!status.isRecalled(loan)) {
-                revert InvalidRefinance();
+                revert LoanIsNotRecalled();
             }
             uint256 rate = status.getRecallRate(loan);
             // Offered loan did not meet the terms of the recall auction
             if (newDetails.rate > rate) {
                 revert InsufficientRefinance();
             }
-
-            uint256 proportion;
-            address payable receiver = payable(loan.issuer);
-            uint256 loanId = loan.getId();
-            // Scenario where the recaller is not penalized
-            // Recaller stake is refunded
-            if (newDetails.rate > oldDetails.rate) {
-                proportion = 0;
-                (receiver,) = status.recalls(loanId);
-            } else {
-                // Scenario where the recaller is penalized
-                // Essentially the old lender and the new lender split the stake of the recaller
-                // Split is proportional to the difference in rate
-                proportion = (oldDetails.rate - newDetails.rate) * (10 ** newDetails.decimals) / oldDetails.rate;
-            }
-            recallConsideration = status.generateRecallConsideration(loan, proportion, fulfiller, receiver);
         }
 
         (repayConsideration, carryConsideration) = getPaymentConsideration(loan);
@@ -113,5 +93,19 @@ contract AstariaV1Pricing is CompoundInterestPricing {
                 selector = bytes4(0xFFFFFFFF);
             }
         }
+    }
+
+    /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
+    /*                     PUBLIC FUNCTIONS                       */
+    /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
+
+    // @inheritdoc BasePricing
+    function calculateInterest(uint256 delta_t, uint256 amount, uint256 rate, uint256 decimals)
+        public
+        pure
+        override
+        returns (uint256)
+    {
+        return AstariaV1Lib.calculateCompoundInterest(delta_t, amount, rate, decimals);
     }
 }

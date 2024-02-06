@@ -104,7 +104,7 @@ contract TestAstariaV1Pricing is AstariaV1Test, DeepEq {
             token: loan.debt[0].token
         });
         SpentItem[] memory expectedCarryConsideration = new SpentItem[](0);
-        AdditionalTransfer[] memory expectedAdditionalTransfers = new AdditionalTransfer[](0);
+        AdditionalTransfer[] memory expectedAdditionalTransfers;
 
         vm.expectRevert(Pricing.InvalidRefinance.selector);
         Pricing(loan.terms.pricing).getRefinanceConsideration(loan, newPricingData, address(loan.borrower));
@@ -168,17 +168,7 @@ contract TestAstariaV1Pricing is AstariaV1Test, DeepEq {
             token: loan.debt[0].token
         });
         SpentItem[] memory expectedCarryConsideration = new SpentItem[](0);
-        AdditionalTransfer[] memory expectedAdditionalTransfers = new AdditionalTransfer[](1);
-        expectedAdditionalTransfers[0] = AdditionalTransfer({
-            identifier: loan.debt[0].identifier,
-            itemType: loan.debt[0].itemType,
-            token: loan.debt[0].token,
-            amount: AstariaV1Lib.calculateCompoundInterest(
-                statusDetails.recallStakeDuration, loan.debt[0].amount, baseDetails.rate, 18
-                ).mulWad(proportion),
-            to: loan.issuer,
-            from: address(this)
-        });
+        AdditionalTransfer[] memory expectedAdditionalTransfers;
 
         vm.mockCall(
             loan.terms.status,
@@ -225,17 +215,7 @@ contract TestAstariaV1Pricing is AstariaV1Test, DeepEq {
             token: loan.debt[0].token
         });
         SpentItem[] memory expectedCarryConsideration = new SpentItem[](0);
-        AdditionalTransfer[] memory expectedAdditionalTransfers = new AdditionalTransfer[](1);
-        expectedAdditionalTransfers[0] = AdditionalTransfer({
-            identifier: loan.debt[0].identifier,
-            itemType: loan.debt[0].itemType,
-            token: loan.debt[0].token,
-            amount: AstariaV1Lib.calculateCompoundInterest(
-                statusDetails.recallStakeDuration, loan.debt[0].amount, baseDetails.rate, 18
-                ).mulWad(proportion),
-            to: recaller.addr,
-            from: address(this)
-        });
+        AdditionalTransfer[] memory expectedAdditionalTransfers;
 
         vm.mockCall(
             loan.terms.status,
@@ -280,17 +260,7 @@ contract TestAstariaV1Pricing is AstariaV1Test, DeepEq {
             token: loan.debt[0].token
         });
         SpentItem[] memory expectedCarryConsideration = new SpentItem[](0);
-        AdditionalTransfer[] memory expectedAdditionalTransfers = new AdditionalTransfer[](1);
-        expectedAdditionalTransfers[0] = AdditionalTransfer({
-            identifier: loan.debt[0].identifier,
-            itemType: loan.debt[0].itemType,
-            token: loan.debt[0].token,
-            amount: AstariaV1Lib.calculateCompoundInterest(
-                statusDetails.recallStakeDuration, loan.debt[0].amount, baseDetails.rate, 18
-                ).mulWad(proportion),
-            to: loan.issuer,
-            from: address(this)
-        });
+        AdditionalTransfer[] memory expectedAdditionalTransfers;
 
         (
             SpentItem[] memory consideration,
