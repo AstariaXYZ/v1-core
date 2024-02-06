@@ -13,21 +13,24 @@
 pragma solidity ^0.8.17;
 
 import {Starport} from "starport-core/Starport.sol";
-import {BorrowerEnforcer, CaveatEnforcer} from "starport-core/enforcers/BorrowerEnforcer.sol";
-import {BasePricing} from "starport-core/pricing/BasePricing.sol";
+import {CaveatEnforcer} from "starport-core/enforcers/CaveatEnforcer.sol";
+import {BasePricing} from "v1-core/pricing/BasePricing.sol";
 import {AdditionalTransfer} from "starport-core/lib/StarportLib.sol";
 
 import {AstariaV1Lib} from "v1-core/lib/AstariaV1Lib.sol";
 
-contract AstariaV1BorrowerEnforcer is BorrowerEnforcer {
+contract AstariaV1BorrowerEnforcer is CaveatEnforcer {
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                       CUSTOM ERRORS                        */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
+    error AmountExceedsCaveatCollateral();
+    error BorrowerOnlyEnforcer();
     error DebtBundlesNotSupported();
+    error InvalidLoanTerms();
+    error InvalidAdditionalTransfer();
     error LoanAmountOutOfBounds();
     error LoanRateExceedsCurrentRate();
-    error AmountExceedsCaveatCollateral();
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                          STRUCTS                           */
@@ -39,7 +42,7 @@ contract AstariaV1BorrowerEnforcer is BorrowerEnforcer {
         uint256 startRate;
         uint256 maxAmount;
         uint256 minAmount;
-        BorrowerEnforcer.Details details;
+        Starport.Loan loan;
     }
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
@@ -94,9 +97,8 @@ contract AstariaV1BorrowerEnforcer is BorrowerEnforcer {
             revert LoanRateExceedsCurrentRate();
         }
 
-        BorrowerEnforcer.Details memory caveatDetails = v1Details.details;
         // Update the caveat loan rate and amount
-        Starport.Loan memory caveatLoan = caveatDetails.loan;
+        Starport.Loan memory caveatLoan = v1Details.loan;
         uint256 i = 0;
         for (; i < caveatLoan.collateral.length;) {
             if (caveatLoan.collateral[i].amount < loan.collateral[i].amount) {
@@ -112,7 +114,7 @@ contract AstariaV1BorrowerEnforcer is BorrowerEnforcer {
         caveatLoan.debt[0].amount = loanAmount;
 
         // Hash match w/ expected issuer
-        _validate(additionalTransfers, loan, caveatDetails);
+        _validate(additionalTransfers, loan, caveatLoan);
         selector = CaveatEnforcer.validate.selector;
     }
 
@@ -121,7 +123,7 @@ contract AstariaV1BorrowerEnforcer is BorrowerEnforcer {
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
     function _locateCurrentRate(V1BorrowerDetails memory v1Details) internal view returns (uint256 currentRate) {
-        uint256 endRate = AstariaV1Lib.getBasePricingRate(v1Details.details.loan.terms.pricingData);
+        uint256 endRate = AstariaV1Lib.getBasePricingRate(v1Details.loan.terms.pricingData);
 
         // if endRate == startRate, or startTime == endTime, or block.timestamp > endTime
         if (
@@ -146,6 +148,26 @@ contract AstariaV1BorrowerEnforcer is BorrowerEnforcer {
         assembly ("memory-safe") {
             // duration > 0, as startTime != endTime and endTime - startTime did not underflow
             currentRate := div(totalBeforeDivision, duration)
+        }
+    }
+
+    function _validate(
+        AdditionalTransfer[] calldata additionalTransfers,
+        Starport.Loan calldata loan,
+        Starport.Loan memory caveatLoan
+    ) internal pure {
+        caveatLoan.issuer = loan.issuer;
+        caveatLoan.originator = loan.originator;
+        if (keccak256(abi.encode(loan)) != keccak256(abi.encode(caveatLoan))) revert InvalidLoanTerms();
+
+        if (additionalTransfers.length > 0) {
+            uint256 i = 0;
+            for (; i < additionalTransfers.length;) {
+                if (additionalTransfers[i].from == loan.borrower) revert InvalidAdditionalTransfer();
+                unchecked {
+                    ++i;
+                }
+            }
         }
     }
 }

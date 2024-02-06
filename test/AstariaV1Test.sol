@@ -14,8 +14,7 @@ pragma solidity ^0.8.17;
 
 import "starport-test/StarportTest.sol";
 
-import {BasePricing} from "starport-core/pricing/BasePricing.sol";
-import {BorrowerEnforcer} from "starport-core/enforcers/BorrowerEnforcer.sol";
+import {BasePricing} from "v1-core/pricing/BasePricing.sol";
 import {CaveatEnforcer} from "starport-core/enforcers/CaveatEnforcer.sol";
 
 import {AstariaV1BorrowerEnforcer} from "v1-core/enforcers/AstariaV1BorrowerEnforcer.sol";
@@ -114,7 +113,7 @@ contract AstariaV1Test is StarportTest {
             startRate: AstariaV1Lib.getBasePricingRate(loan.terms.pricingData),
             minAmount: loan.debt[0].amount,
             maxAmount: loan.debt[0].amount,
-            details: BorrowerEnforcer.Details(loan)
+            loan: loan
         });
         CaveatEnforcer.Caveat memory caveat =
             CaveatEnforcer.Caveat({enforcer: address(borrowerEnforcer), data: abi.encode(v1BorrowerDetails)});
@@ -135,7 +134,7 @@ contract AstariaV1Test is StarportTest {
         AstariaV1LenderEnforcer.V1LenderDetails memory v1LenderDetails = AstariaV1LenderEnforcer.V1LenderDetails({
             matchIdentifier: true,
             minDebtAmount: loan.debt[0].amount,
-            details: LenderEnforcer.Details(loan)
+            loan: loan
         });
 
         CaveatEnforcer.Caveat memory caveat =

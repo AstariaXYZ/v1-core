@@ -48,7 +48,7 @@ contract TestAstariaV1Loan is AstariaV1Test {
         BaseRecall(address(status)).recall(loan);
 
         AstariaV1Settlement.Details memory settlementDetails =
-            abi.decode(loan.terms.settlementData, (DutchAuctionSettlement.Details));
+            abi.decode(loan.terms.settlementData, (AstariaV1Settlement.Details));
 
         skip(statusDetails.recallWindow + settlementDetails.window + 2);
 
@@ -109,7 +109,7 @@ contract TestAstariaV1Loan is AstariaV1Test {
         BaseRecall(address(status)).recall(loan);
 
         AstariaV1Settlement.Details memory settlementDetails =
-            abi.decode(loan.terms.settlementData, (DutchAuctionSettlement.Details));
+            abi.decode(loan.terms.settlementData, (AstariaV1Settlement.Details));
 
         skip(statusDetails.recallWindow + settlementDetails.window + 2);
 

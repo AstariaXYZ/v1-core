@@ -13,19 +13,21 @@
 pragma solidity ^0.8.17;
 
 import {Starport} from "starport-core/Starport.sol";
-import {LenderEnforcer, CaveatEnforcer} from "starport-core/enforcers/LenderEnforcer.sol";
-import {BasePricing} from "starport-core/pricing/BasePricing.sol";
+import {CaveatEnforcer} from "starport-core/enforcers/CaveatEnforcer.sol";
+import {BasePricing} from "v1-core/pricing/BasePricing.sol";
 import {AdditionalTransfer} from "starport-core/lib/StarportLib.sol";
 
 import {AstariaV1Lib} from "v1-core/lib/AstariaV1Lib.sol";
 import {ItemType} from "seaport-types/src/lib/ConsiderationEnums.sol";
 import {SpentItem} from "seaport-types/src/lib/ConsiderationStructs.sol";
 
-contract AstariaV1LenderEnforcer is LenderEnforcer {
+contract AstariaV1LenderEnforcer is CaveatEnforcer {
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                       CUSTOM ERRORS                        */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
+    error InvalidLoanTerms();
+    error InvalidAdditionalTransfer();
     error LoanRateLessThanCaveatRate();
     error DebtBundlesNotSupported();
     error DebtAmountOOB(uint256 min, uint256 max, uint256 actual);
@@ -43,7 +45,7 @@ contract AstariaV1LenderEnforcer is LenderEnforcer {
     struct V1LenderDetails {
         bool matchIdentifier;
         uint256 minDebtAmount;
-        LenderEnforcer.Details details;
+        Starport.Loan loan;
     }
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
@@ -74,7 +76,7 @@ contract AstariaV1LenderEnforcer is LenderEnforcer {
         );
 
         V1LenderDetails memory v1Details = abi.decode(caveatData, (V1LenderDetails));
-        Starport.Loan memory caveatLoan = v1Details.details.loan;
+        Starport.Loan memory caveatLoan = v1Details.loan;
         SpentItem memory caveatDebt = caveatLoan.debt[0];
 
         if (v1Details.minDebtAmount > caveatDebt.amount) {
@@ -108,7 +110,30 @@ contract AstariaV1LenderEnforcer is LenderEnforcer {
         }
 
         // Hash and match w/ expected borrower
-        _validate(additionalTransfers, loan, v1Details.details);
+        _validate(additionalTransfers, loan, caveatLoan);
         selector = CaveatEnforcer.validate.selector;
+    }
+
+    function _validate(
+        AdditionalTransfer[] calldata additionalTransfers,
+        Starport.Loan calldata loan,
+        Starport.Loan memory caveatLoan
+    ) internal pure {
+        caveatLoan.borrower = loan.borrower;
+        caveatLoan.originator = loan.originator;
+
+        if (keccak256(abi.encode(loan)) != keccak256(abi.encode(caveatLoan))) {
+            revert InvalidLoanTerms();
+        }
+
+        if (additionalTransfers.length > 0) {
+            uint256 i = 0;
+            for (; i < additionalTransfers.length;) {
+                if (additionalTransfers[i].from == loan.issuer) revert InvalidAdditionalTransfer();
+                unchecked {
+                    ++i;
+                }
+            }
+        }
     }
 }

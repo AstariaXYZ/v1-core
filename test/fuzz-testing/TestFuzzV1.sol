@@ -8,8 +8,6 @@ import {
     ItemType,
     CaveatEnforcer,
     StarportTest,
-    DutchAuctionSettlement,
-    BasePricing,
     AdditionalTransfer,
     LenderEnforcer,
     Pricing
@@ -21,7 +19,8 @@ import {
     AstariaV1Settlement,
     AstariaV1Test,
     BaseRecall,
-    AstariaV1LenderEnforcer
+    AstariaV1LenderEnforcer,
+    BasePricing
 } from "test/AstariaV1Test.sol";
 import {Validation} from "starport-core/lib/Validation.sol";
 import "forge-std/console.sol";
@@ -201,8 +200,8 @@ contract TestFuzzV1 is AstariaV1Test, TestFuzzStarport {
 
         BaseRecall(goodLoan.terms.status).recall(goodLoan);
         vm.stopPrank();
-        DutchAuctionSettlement.Details memory settlementDetails =
-            abi.decode(goodLoan.terms.settlementData, (DutchAuctionSettlement.Details));
+        AstariaV1Settlement.Details memory settlementDetails =
+            abi.decode(goodLoan.terms.settlementData, (AstariaV1Settlement.Details));
 
         skip(_bound(0, details.recallWindow + 1, details.recallWindow + 1 + settlementDetails.window - 1));
     }
@@ -245,7 +244,7 @@ contract TestFuzzV1 is AstariaV1Test, TestFuzzStarport {
             })
         );
         dataBounds.settlementBoundData = abi.encode(
-            DutchAuctionSettlement.Details({
+            AstariaV1Settlement.Details({
                 startingPrice: _boundMax(1, 1e18),
                 endingPrice: _boundMax(1, 1e18),
                 window: _boundMax(1 days, 365 days)
@@ -283,18 +282,17 @@ contract TestFuzzV1 is AstariaV1Test, TestFuzzStarport {
         Starport.Loan memory refiLoan = loanCopy(goodLoan);
         refiLoan.terms.pricingData = pricingData;
         refiLoan.debt = SP.applyRefinanceConsiderationToLoan(considerationPayment, carryPayment);
-        LenderEnforcer.Details memory details = LenderEnforcer.Details({loan: refiLoan});
 
         AstariaV1LenderEnforcer.V1LenderDetails memory lenderDetails = AstariaV1LenderEnforcer.V1LenderDetails({
             matchIdentifier: true,
             minDebtAmount: refiLoan.debt[0].amount,
-            details: details
+            loan: refiLoan
         });
 
         bytes32 salt = bytes32(msg.sig);
-        details.loan.issuer = account.addr;
-        details.loan.originator = address(0);
-        details.loan.start = 0;
+        refiLoan.issuer = account.addr;
+        refiLoan.originator = address(0);
+        refiLoan.start = 0;
         signedCaveats.caveats = new CaveatEnforcer.Caveat[](1);
         signedCaveats.salt = salt;
         signedCaveats.singleUse = true;
