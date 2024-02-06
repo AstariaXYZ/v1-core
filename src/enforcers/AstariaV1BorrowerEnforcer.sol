@@ -36,7 +36,7 @@ contract AstariaV1BorrowerEnforcer is CaveatEnforcer {
     /*                          STRUCTS                           */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
-    struct V1BorrowerDetails {
+    struct Details {
         uint256 startTime;
         uint256 endTime;
         uint256 startRate;
@@ -51,8 +51,8 @@ contract AstariaV1BorrowerEnforcer is CaveatEnforcer {
 
     /// @notice Calculates the current maximum valid rate of a caveat
     function locateCurrentRate(bytes calldata caveatData) external view returns (uint256 currentRate) {
-        V1BorrowerDetails memory v1Details = abi.decode(caveatData, (V1BorrowerDetails));
-        return _locateCurrentRate(v1Details);
+        Details memory details = abi.decode(caveatData, (Details));
+        return _locateCurrentRate(details);
     }
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
@@ -84,21 +84,21 @@ contract AstariaV1BorrowerEnforcer is CaveatEnforcer {
             AstariaV1Lib.getBasePricingDecimals(loanTerms.pricingData) // decimals
         );
 
-        V1BorrowerDetails memory v1Details = abi.decode(caveatData, (V1BorrowerDetails));
+        Details memory details = abi.decode(caveatData, (Details));
 
-        if (loanAmount < v1Details.minAmount || loanAmount > v1Details.maxAmount) {
+        if (loanAmount < details.minAmount || loanAmount > details.maxAmount) {
             // Debt amount is less than the current caveat amount
             revert LoanAmountOutOfBounds();
         }
 
-        uint256 currentRate = _locateCurrentRate(v1Details);
+        uint256 currentRate = _locateCurrentRate(details);
         if (loanRate > currentRate) {
             // Loan rate is greater than the current caveat rate
             revert LoanRateExceedsCurrentRate();
         }
 
         // Update the caveat loan rate and amount
-        Starport.Loan memory caveatLoan = v1Details.loan;
+        Starport.Loan memory caveatLoan = details.loan;
         uint256 i = 0;
         for (; i < caveatLoan.collateral.length;) {
             if (caveatLoan.collateral[i].amount < loan.collateral[i].amount) {
@@ -122,20 +122,17 @@ contract AstariaV1BorrowerEnforcer is CaveatEnforcer {
     /*                    INTERNAL FUNCTIONS                      */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
-    function _locateCurrentRate(V1BorrowerDetails memory v1Details) internal view returns (uint256 currentRate) {
-        uint256 endRate = AstariaV1Lib.getBasePricingRate(v1Details.loan.terms.pricingData);
+    function _locateCurrentRate(Details memory details) internal view returns (uint256 currentRate) {
+        uint256 endRate = AstariaV1Lib.getBasePricingRate(details.loan.terms.pricingData);
 
         // if endRate == startRate, or startTime == endTime, or block.timestamp > endTime
-        if (
-            endRate == v1Details.startRate || v1Details.startTime == v1Details.endTime
-                || block.timestamp > v1Details.endTime
-        ) {
+        if (endRate == details.startRate || details.startTime == details.endTime || block.timestamp > details.endTime) {
             return endRate;
         }
 
         // Will revert if startTime > endTime
-        uint256 duration = v1Details.endTime - v1Details.startTime;
-        uint256 elapsed = block.timestamp - v1Details.startTime;
+        uint256 duration = details.endTime - details.startTime;
+        uint256 elapsed = block.timestamp - details.startTime;
         uint256 remaining;
         assembly ("memory-safe") {
             // block.timestamp <= endTime, can't underflow
@@ -144,7 +141,7 @@ contract AstariaV1BorrowerEnforcer is CaveatEnforcer {
 
         // Calculate rate with a linear growth
         // Weight startRate by the remaining time, and endRate by the elapsed time
-        uint256 totalBeforeDivision = (v1Details.startRate * remaining) + (endRate * elapsed);
+        uint256 totalBeforeDivision = (details.startRate * remaining) + (endRate * elapsed);
         assembly ("memory-safe") {
             // duration > 0, as startTime != endTime and endTime - startTime did not underflow
             currentRate := div(totalBeforeDivision, duration)

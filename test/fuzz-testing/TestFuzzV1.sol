@@ -251,7 +251,7 @@ contract TestFuzzV1 is AstariaV1Test, TestFuzzStarport {
         refiLoan.terms.pricingData = pricingData;
         refiLoan.debt = SP.applyRefinanceConsiderationToLoan(considerationPayment, carryPayment);
 
-        AstariaV1LenderEnforcer.V1LenderDetails memory lenderDetails = AstariaV1LenderEnforcer.V1LenderDetails({
+        AstariaV1LenderEnforcer.Details memory lenderDetails = AstariaV1LenderEnforcer.Details({
             matchIdentifier: true,
             minDebtAmount: refiLoan.debt[0].amount,
             loan: refiLoan
