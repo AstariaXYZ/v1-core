@@ -99,8 +99,7 @@ contract AstariaV1Test is StarportTest {
     {
         loan = loanCopy(loan);
         loan.issuer = address(0);
-        AstariaV1BorrowerEnforcer.V1BorrowerDetails memory v1BorrowerDetails = AstariaV1BorrowerEnforcer
-            .V1BorrowerDetails({
+        AstariaV1BorrowerEnforcer.Details memory Details = AstariaV1BorrowerEnforcer.Details({
             startTime: block.timestamp,
             endTime: block.timestamp,
             startRate: AstariaV1Lib.getBasePricingRate(loan.terms.pricingData),
@@ -109,7 +108,7 @@ contract AstariaV1Test is StarportTest {
             loan: loan
         });
         CaveatEnforcer.Caveat memory caveat =
-            CaveatEnforcer.Caveat({enforcer: address(borrowerEnforcer), data: abi.encode(v1BorrowerDetails)});
+            CaveatEnforcer.Caveat({enforcer: address(borrowerEnforcer), data: abi.encode(Details)});
         return signCaveatForAccount(caveat, salt, signer, true);
     }
 
@@ -123,14 +122,11 @@ contract AstariaV1Test is StarportTest {
         loan = loanCopy(loan);
         loan.borrower = address(0);
 
-        AstariaV1LenderEnforcer.V1LenderDetails memory v1LenderDetails = AstariaV1LenderEnforcer.V1LenderDetails({
-            matchIdentifier: true,
-            minDebtAmount: loan.debt[0].amount,
-            loan: loan
-        });
+        AstariaV1LenderEnforcer.Details memory Details =
+            AstariaV1LenderEnforcer.Details({matchIdentifier: true, minDebtAmount: loan.debt[0].amount, loan: loan});
 
         CaveatEnforcer.Caveat memory caveat =
-            CaveatEnforcer.Caveat({enforcer: address(lenderEnforcer), data: abi.encode(v1LenderDetails)});
+            CaveatEnforcer.Caveat({enforcer: address(lenderEnforcer), data: abi.encode(Details)});
 
         return signCaveatForAccount(caveat, salt, signer, invalidate);
     }

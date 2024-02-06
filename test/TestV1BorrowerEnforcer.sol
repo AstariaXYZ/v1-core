@@ -34,7 +34,7 @@ contract TestV1BorrowerEnforcer is AstariaV1Test, AstariaV1BorrowerEnforcer {
     function testV1BorrowerEnforcerEnd() public {
         Starport.Loan memory loan = generateDefaultLoanTerms();
 
-        AstariaV1BorrowerEnforcer.V1BorrowerDetails memory details = AstariaV1BorrowerEnforcer.V1BorrowerDetails({
+        AstariaV1BorrowerEnforcer.Details memory details = AstariaV1BorrowerEnforcer.Details({
             startTime: block.timestamp,
             endTime: block.timestamp + 10,
             startRate: endRate / 2,
@@ -53,7 +53,7 @@ contract TestV1BorrowerEnforcer is AstariaV1Test, AstariaV1BorrowerEnforcer {
     function testV1BorrowerEnforcerStart() public {
         Starport.Loan memory loan = generateDefaultLoanTerms();
 
-        AstariaV1BorrowerEnforcer.V1BorrowerDetails memory details = AstariaV1BorrowerEnforcer.V1BorrowerDetails({
+        AstariaV1BorrowerEnforcer.Details memory details = AstariaV1BorrowerEnforcer.Details({
             startTime: block.timestamp,
             endTime: block.timestamp + 10,
             startRate: endRate / 2,
@@ -68,7 +68,7 @@ contract TestV1BorrowerEnforcer is AstariaV1Test, AstariaV1BorrowerEnforcer {
 
     function testRevertLocateCurrentRateAndAmount() public {
         Starport.Loan memory loan = generateDefaultLoanTerms();
-        AstariaV1BorrowerEnforcer.V1BorrowerDetails memory details = AstariaV1BorrowerEnforcer.V1BorrowerDetails({
+        AstariaV1BorrowerEnforcer.Details memory details = AstariaV1BorrowerEnforcer.Details({
             startTime: block.timestamp + 10,
             endTime: block.timestamp,
             startRate: endRate / 2,
@@ -91,7 +91,7 @@ contract TestV1BorrowerEnforcer is AstariaV1Test, AstariaV1BorrowerEnforcer {
     function testV1BorrowerEnforcerHalfway() public {
         Starport.Loan memory loan = generateDefaultLoanTerms();
 
-        AstariaV1BorrowerEnforcer.V1BorrowerDetails memory details = AstariaV1BorrowerEnforcer.V1BorrowerDetails({
+        AstariaV1BorrowerEnforcer.Details memory details = AstariaV1BorrowerEnforcer.Details({
             startTime: block.timestamp,
             endTime: block.timestamp + 10,
             startRate: endRate / 2,
@@ -112,7 +112,7 @@ contract TestV1BorrowerEnforcer is AstariaV1Test, AstariaV1BorrowerEnforcer {
     function testV1BorrowerEnforcerDebtAmountOOB() public {
         Starport.Loan memory loan = generateDefaultLoanTerms();
 
-        AstariaV1BorrowerEnforcer.V1BorrowerDetails memory details = AstariaV1BorrowerEnforcer.V1BorrowerDetails({
+        AstariaV1BorrowerEnforcer.Details memory details = AstariaV1BorrowerEnforcer.Details({
             startTime: block.timestamp,
             endTime: block.timestamp + 10,
             startRate: endRate / 2,
@@ -142,7 +142,7 @@ contract TestV1BorrowerEnforcer is AstariaV1Test, AstariaV1BorrowerEnforcer {
             identifier: 0 // 0 for ERC20
         });
 
-        AstariaV1BorrowerEnforcer.V1BorrowerDetails memory details = AstariaV1BorrowerEnforcer.V1BorrowerDetails({
+        AstariaV1BorrowerEnforcer.Details memory details = AstariaV1BorrowerEnforcer.Details({
             startTime: block.timestamp,
             endTime: block.timestamp + 10,
             startRate: endRate / 2,
@@ -167,7 +167,7 @@ contract TestV1BorrowerEnforcer is AstariaV1Test, AstariaV1BorrowerEnforcer {
     function testV1BorrowerEnforcerRateGTCurrent() public {
         Starport.Loan memory loan = generateDefaultLoanTerms();
 
-        AstariaV1BorrowerEnforcer.V1BorrowerDetails memory details = AstariaV1BorrowerEnforcer.V1BorrowerDetails({
+        AstariaV1BorrowerEnforcer.Details memory details = AstariaV1BorrowerEnforcer.Details({
             startTime: block.timestamp,
             endTime: block.timestamp + 10,
             startRate: endRate / 2,
@@ -187,7 +187,7 @@ contract TestV1BorrowerEnforcer is AstariaV1Test, AstariaV1BorrowerEnforcer {
     function testV1BorrowerEnforcerRateLTCurrent() public {
         Starport.Loan memory loan = generateDefaultLoanTerms();
 
-        AstariaV1BorrowerEnforcer.V1BorrowerDetails memory details = AstariaV1BorrowerEnforcer.V1BorrowerDetails({
+        AstariaV1BorrowerEnforcer.Details memory details = AstariaV1BorrowerEnforcer.Details({
             startTime: block.timestamp,
             endTime: block.timestamp + 10,
             startRate: endRate / 2,

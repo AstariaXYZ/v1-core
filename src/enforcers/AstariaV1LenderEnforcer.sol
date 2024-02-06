@@ -43,7 +43,7 @@ contract AstariaV1LenderEnforcer is CaveatEnforcer {
     /*                          STRUCTS                           */
     /*.•°:°.´+˚.*°.˚:*.´•*.+°.•°:´*.´•*.•°.•°:°.´:•˚°.*°.˚:*.´+°.•*/
 
-    struct V1LenderDetails {
+    struct Details {
         bool matchIdentifier;
         uint256 minDebtAmount;
         Starport.Loan loan;
@@ -76,16 +76,16 @@ contract AstariaV1LenderEnforcer is CaveatEnforcer {
             AstariaV1Lib.getBasePricingDecimals(loanTerms.pricingData)
         );
 
-        V1LenderDetails memory v1Details = abi.decode(caveatData, (V1LenderDetails));
-        Starport.Loan memory caveatLoan = v1Details.loan;
+        Details memory details = abi.decode(caveatData, (Details));
+        Starport.Loan memory caveatLoan = details.loan;
         SpentItem memory caveatDebt = caveatLoan.debt[0];
 
-        if (v1Details.minDebtAmount > caveatDebt.amount) {
+        if (details.minDebtAmount > caveatDebt.amount) {
             revert MinDebtAmountExceedsMax();
         }
-        if (loanAmount > caveatDebt.amount || loanAmount < v1Details.minDebtAmount) {
+        if (loanAmount > caveatDebt.amount || loanAmount < details.minDebtAmount) {
             // Debt amount is greater than the max amount or the caveatDebt amount
-            revert DebtAmountOOB(v1Details.minDebtAmount, caveatDebt.amount, loanAmount);
+            revert DebtAmountOOB(details.minDebtAmount, caveatDebt.amount, loanAmount);
         }
 
         bytes memory caveatPricingData = caveatLoan.terms.pricingData;
@@ -99,7 +99,7 @@ contract AstariaV1LenderEnforcer is CaveatEnforcer {
         // Update the caveat loan amount
         caveatDebt.amount = loanAmount;
 
-        if (!v1Details.matchIdentifier) {
+        if (!details.matchIdentifier) {
             // Update the caveat loan identifier
             uint256 i = 0;
             for (; i < caveatLoan.collateral.length;) {
