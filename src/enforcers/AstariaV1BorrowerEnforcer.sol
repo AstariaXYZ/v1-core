@@ -31,6 +31,8 @@ contract AstariaV1BorrowerEnforcer is CaveatEnforcer {
     error InvalidAdditionalTransfer();
     error LoanAmountOutOfBounds();
     error LoanRateExceedsCurrentRate();
+    error StartRateExceedsEndRate();
+    error MinAmountExceedsMaxAmount();
 
     /*´:°•.°+.*•´.*:˚.°*.˚•´.°:°•.°•.*•´.*:˚.°*.˚•´.°:°•.°+.*•´.*:*/
     /*                          STRUCTS                           */
@@ -86,6 +88,10 @@ contract AstariaV1BorrowerEnforcer is CaveatEnforcer {
 
         Details memory details = abi.decode(caveatData, (Details));
 
+        if (details.maxAmount < details.minAmount) {
+            revert MinAmountExceedsMaxAmount();
+        }
+
         if (loanAmount < details.minAmount || loanAmount > details.maxAmount) {
             // Debt amount is less than the current caveat amount
             revert LoanAmountOutOfBounds();
@@ -125,6 +131,9 @@ contract AstariaV1BorrowerEnforcer is CaveatEnforcer {
     function _locateCurrentRate(Details memory details) internal view returns (uint256 currentRate) {
         uint256 endRate = AstariaV1Lib.getBasePricingRate(details.loan.terms.pricingData);
 
+        if (endRate < details.startRate) {
+            revert StartRateExceedsEndRate();
+        }
         // if endRate == startRate, or startTime == endTime, or block.timestamp > endTime
         if (endRate == details.startRate || details.startTime == details.endTime || block.timestamp > details.endTime) {
             return endRate;
