@@ -16,7 +16,7 @@
   },
   "scripts": {
     "prepare": "husky install",
-    "snapshot": "forge snapshot --diff --no-match-path *fuzz*",
+    "snapshot": "forge snapshot --no-match-path *fuzz*",
     "test": "forge test --no-match-path *fuzz*"
   },
   "dependencies": {
