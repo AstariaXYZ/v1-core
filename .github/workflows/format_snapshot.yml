@@ -28,11 +28,11 @@ jobs:
         run: forge fmt
 
       - name: Snapshot
-        run: forge snapshot --diff --no-match-path *fuzz*
+        run: yarn snapshot
 
       - name: Test
         run: forge test -vvv
 
       - uses: stefanzweifel/git-auto-commit-action@v4
         with:
-          commit_message: 'chore(bot): format & snapshot'
+          commit_message: "chore(bot): format & snapshot"
