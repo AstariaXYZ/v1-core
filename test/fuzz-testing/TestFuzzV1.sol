@@ -204,6 +204,11 @@ contract TestFuzzV1 is AstariaV1Test, BaseFuzzStarport {
 
         assertEq(additionalTransfers.length, 0, "additional transfers not empty");
 
+        // Burn all of the lender's debt token to avoid overflow
+        vm.startPrank(lender.addr);
+        erc20s[1].transfer(address(0xdead), erc20s[1].balanceOf(lender.addr));
+        vm.stopPrank();
+
         Starport.Loan memory refiLoan = loanCopy(goodLoan);
         refiLoan.terms.pricingData = newPricingDetails;
         refiLoan.debt = SP.applyRefinanceConsiderationToLoan(considerationPayment, carryPayment);
@@ -212,6 +217,8 @@ contract TestFuzzV1 is AstariaV1Test, BaseFuzzStarport {
         refiLoan.start = 0;
 
         assertEq(address(goodLoan.debt[0].token), address(refiLoan.debt[0].token), "debt tokens not equal");
+
+        vm.assume(refiLoan.issuer != goodLoan.issuer);
 
         _issueAndApproveTarget(refiLoan.debt, account.addr, address(SP));
 
