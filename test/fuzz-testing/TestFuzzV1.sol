@@ -29,19 +29,17 @@ contract TestFuzzV1 is AstariaV1Test, BaseFuzzStarport {
     uint256 public decimals;
     uint256 public rate;
 
-    error Log(uint256 dec, uint256 rate);
-
     function setUp() public virtual override (AstariaV1Test, BaseFuzzStarport) {
         super.setUp();
     }
 
     function _boundStatusData() internal virtual override returns (bytes memory statusData) {
-        uint256 maxRecallRate = 10 ** (decimals + 1);
+        uint256 maxRecallRate = 10 * 10 ** decimals;
 
         statusData = abi.encode(
             BaseRecall.Details({
                 honeymoon: _boundMax(_random(), 365 days),
-                recallWindow: _boundMax(_random(), 365 days),
+                recallWindow: _bound(_random(), 1, 365 days),
                 recallMax: rate == maxRecallRate ? rate : _bound(_random(), rate, maxRecallRate)
             })
         );
@@ -164,8 +162,9 @@ contract TestFuzzV1 is AstariaV1Test, BaseFuzzStarport {
         vm.prank(lender.addr);
         BaseRecall(goodLoan.terms.status).recall(goodLoan);
 
-        skip(_bound(0, details.recallWindow / 2, details.recallWindow - 1));
-        console.log("skipped inside recall");
+        if (details.recallWindow > 0) {
+            skip(_boundMax(_random(), details.recallWindow - 1));
+        }
     }
 
     function _generateGoodLoan(FuzzLoan memory params) internal virtual override returns (Starport.Loan memory) {
@@ -194,62 +193,66 @@ contract TestFuzzV1 is AstariaV1Test, BaseFuzzStarport {
     function _generateRefinanceCaveat(
         Account memory account,
         Starport.Loan memory goodLoan,
-        SpentItem[] memory considerationPayment,
-        SpentItem[] memory carryPayment,
-        bytes memory pricingData
+        bytes memory newPricingDetails,
+        address refiFulfiller
     ) internal virtual returns (CaveatEnforcer.SignedCaveats memory signedCaveats) {
+        (
+            SpentItem[] memory considerationPayment,
+            SpentItem[] memory carryPayment,
+            AdditionalTransfer[] memory additionalTransfers
+        ) = Pricing(goodLoan.terms.pricing).getRefinanceConsideration(goodLoan, newPricingDetails, refiFulfiller);
+
+        assertEq(additionalTransfers.length, 0, "additional transfers not empty");
+
         Starport.Loan memory refiLoan = loanCopy(goodLoan);
-        refiLoan.terms.pricingData = pricingData;
+        refiLoan.terms.pricingData = newPricingDetails;
         refiLoan.debt = SP.applyRefinanceConsiderationToLoan(considerationPayment, carryPayment);
         refiLoan.issuer = account.addr;
         refiLoan.originator = address(0);
         refiLoan.start = 0;
 
+        assertEq(address(goodLoan.debt[0].token), address(refiLoan.debt[0].token), "debt tokens not equal");
+
+        _issueAndApproveTarget(refiLoan.debt, account.addr, address(SP));
+
         vm.assume(!willArithmeticOverflow(refiLoan));
-        return super._generateSignedCaveatLender(refiLoan, account, bytes32(msg.sig), true);
+
+        signedCaveats = refiFulfiller != refiLoan.issuer
+            ? super._generateSignedCaveatLender(refiLoan, account, bytes32(msg.sig), true)
+            : _emptyCaveat();
+
+        if (refiFulfiller != refiLoan.issuer) {
+            uint256 caveatDebt =
+                abi.decode(signedCaveats.caveats[0].data, (AstariaV1LenderEnforcer.Details)).loan.debt[0].amount;
+
+            assertEq(caveatDebt, refiLoan.debt[0].amount, "not equal");
+        }
     }
 
     function testFuzzRefinance(FuzzRefinanceLoan memory params) public virtual override {
         Starport.Loan memory goodLoan = _generateGoodLoan(params.origination);
-        skip(1);
+
         _skipToRefinance(goodLoan);
 
         bytes memory newPricingDetails = _boundRefinanceData(goodLoan);
         Account memory account = makeAndAllocateAccount(params.refiKey);
 
         address refiFulfiller;
-        (
-            SpentItem[] memory considerationPayment,
-            SpentItem[] memory carryPayment,
-            AdditionalTransfer[] memory additionalTransfers
-        ) = Pricing(goodLoan.terms.pricing).getRefinanceConsideration(goodLoan, newPricingDetails, refiFulfiller);
+
         if (params.origination.fulfillerType % 2 == 0) {
             refiFulfiller = goodLoan.borrower;
         } else if (params.origination.fulfillerType % 3 == 0) {
             refiFulfiller = account.addr;
         } else {
-            refiFulfiller = _toAddress(_boundMin(params.skipTime, 100));
+            refiFulfiller = _toAddress(_boundMin(_random(), 100));
         }
 
-        (bool success,) =
-            address(goodLoan.terms.pricing).call(abi.encodeCall(Pricing.getPaymentConsideration, (goodLoan)));
-
-        if (!success) {
-            vm.expectRevert(FixedPointMathLib.MulWadFailed.selector);
-        }
-
-        Starport.Loan memory goodLoan2 = goodLoan;
         {
-            CaveatEnforcer.SignedCaveats memory lenderCaveat = refiFulfiller != account.addr
-                ? _generateRefinanceCaveat(account, goodLoan2, considerationPayment, carryPayment, newPricingDetails)
-                : _emptyCaveat();
-            vm.prank(address(account.addr));
-            erc20s[1].approve(address(SP), type(uint256).max);
-            assertEq(address(goodLoan2.debt[0].token), address(erc20s[1]), "not equal");
-            assertEq(additionalTransfers.length, 0, "additional transfers not empty");
+            CaveatEnforcer.SignedCaveats memory lenderCaveat =
+                _generateRefinanceCaveat(account, goodLoan, newPricingDetails, refiFulfiller);
 
             vm.prank(refiFulfiller);
-            SP.refinance(account.addr, lenderCaveat, goodLoan2, newPricingDetails, "");
+            SP.refinance(account.addr, lenderCaveat, goodLoan, newPricingDetails, "");
         }
     }
 }
