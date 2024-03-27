@@ -3,14 +3,15 @@ pragma solidity ^0.8.17;
 import "starport-test/utils/FuzzStructs.sol" as Fuzz;
 
 import {
-    TestFuzzStarport,
     SpentItem,
     ItemType,
     CaveatEnforcer,
     StarportTest,
     AdditionalTransfer,
-    Pricing
-} from "starport-test/fuzz-testing/TestFuzzStarport.sol";
+    Pricing,
+    BaseFuzzStarport,
+    FixedPointMathLib
+} from "starport-test/fuzz-testing/BaseFuzzStarport.sol";
 import {Starport} from "starport-core/Starport.sol";
 import {
     AstariaV1Status,
@@ -24,117 +25,71 @@ import {
 import {Validation} from "starport-core/lib/Validation.sol";
 import "forge-std/console.sol";
 
-contract TestFuzzV1 is AstariaV1Test, TestFuzzStarport {
-    V1LoanBounds dataBounds;
+contract TestFuzzV1 is AstariaV1Test, BaseFuzzStarport {
+    uint256 public decimals;
+    uint256 public rate;
 
-    function setUp() public virtual override (AstariaV1Test, TestFuzzStarport) {
+    function setUp() public virtual override (AstariaV1Test, BaseFuzzStarport) {
         super.setUp();
     }
 
-    struct FuzzV1 {
-        FuzzLoan origination;
+    function _boundStatusData() internal virtual override returns (bytes memory statusData) {
+        uint256 maxRecallRate = 10 * 10 ** decimals;
+
+        statusData = abi.encode(
+            BaseRecall.Details({
+                honeymoon: _boundMax(_random(), 365 days),
+                recallWindow: _bound(_random(), 1, 365 days),
+                recallMax: rate == maxRecallRate ? rate : _bound(_random(), rate, maxRecallRate)
+            })
+        );
     }
 
-    struct V1LoanBounds {
-        bytes pricingBoundData;
-        bytes statusBoundData;
-        bytes settlementBoundData;
+    function _boundSettlementData() internal virtual override returns (bytes memory settlementData) {
+        settlementData = "";
     }
 
-    function boundBadLoan(
-        Fuzz.SpentItem[10] memory collateral,
-        Fuzz.SpentItem[10] memory debt,
-        address[3] memory badAddresses
-    ) public virtual override returns (Starport.Loan memory loan) {
-        uint256 length = _boundMin(0, collateral.length);
-        loan.terms = boundFuzzLenderTerms(abi.encode(dataBounds));
-        uint256 i = 0;
-        SpentItem[] memory ret = new SpentItem[](length);
+    function _boundPricingData() internal virtual override returns (bytes memory pricingData) {
+        decimals = _bound(_random(), 1, 18);
+        rate = _bound(_random(), 1, 10 ** (decimals + 1)); // 1000% interest rate
 
-        for (; i < length; i++) {
-            ret[i] = _boundSpentItem(collateral[i]);
-        }
-        loan.collateral = ret;
-        length = _boundMin(0, debt.length);
-        i = 0;
-
-        ret = new SpentItem[](length);
-        for (; i < length; i++) {
-            ret[i] = _boundSpentItem(debt[i]);
-        }
-        loan.debt = ret;
-        loan.borrower = _toAddress(_boundMin(_toUint(badAddresses[0]), 100));
-        loan.custodian = _toAddress(_boundMin(_toUint(badAddresses[1]), 100));
-        loan.issuer = _toAddress(_boundMin(_toUint(badAddresses[2]), 100));
-        return loan;
+        pricingData = abi.encode(
+            BasePricing.Details({rate: rate, carryRate: _boundMax(_random(), 10 ** decimals), decimals: decimals})
+        );
     }
 
-    function boundStatusData(bytes memory boundStatusData)
-        internal
-        view
-        virtual
-        override
-        returns (bytes memory statusData)
-    {
-        //        BaseRecall.Details memory boundDetails =
-        //                            AstariaV1Status.Details({loanDuration: _boundMax(1 hours, 1095 days)});
-        //        statusData = abi.encode(boundDetails);
-        return boundStatusData;
-    }
-
-    function boundSettlementData(bytes memory boundSettlementData)
-        internal
-        view
-        virtual
-        override
-        returns (bytes memory settlementData)
-    {
-        return boundSettlementData;
-    }
-
-    function boundPricingData(bytes memory boundPricingData)
-        internal
-        view
-        virtual
-        override
-        returns (bytes memory pricingData)
-    {
-        return boundPricingData;
-    }
-
-    function boundFuzzLenderTerms(bytes memory loanBoundsData)
-        internal
-        view
-        override
-        returns (Starport.Terms memory terms)
-    {
-        V1LoanBounds memory loanBounds = abi.decode(loanBoundsData, (V1LoanBounds));
-        terms.status = address(status);
-        terms.settlement = address(settlement);
-        terms.pricing = address(pricing);
-        terms.pricingData = boundPricingData(loanBounds.pricingBoundData);
-        terms.statusData = boundStatusData(loanBounds.statusBoundData);
-        terms.settlementData = boundSettlementData(loanBounds.settlementBoundData);
-    }
-
-    function boundFuzzLoan(FuzzLoan memory params, bytes memory loanBoundsData)
+    function _boundRefinanceData(Starport.Loan memory loan)
         internal
         virtual
         override
-        returns (Starport.Loan memory loan)
+        returns (bytes memory newPricing)
     {
-        uint256 length = _boundMax(1, 4);
-        loan.terms = boundFuzzLenderTerms(loanBoundsData);
-        uint256 i = 0;
-        if (length > params.collateral.length) {
-            length = params.collateral.length;
-        }
-        SpentItem[] memory ret = new SpentItem[](length);
+        decimals = abi.decode(loan.terms.pricingData, (BasePricing.Details)).decimals;
 
-        for (; i < length; i++) {
+        uint256 recallRate = BaseRecall(loan.terms.status).getRecallRate(loan);
+        vm.assume(recallRate != 0);
+
+        newPricing = abi.encode(
+            BasePricing.Details({rate: recallRate, carryRate: _boundMax(_random(), 10 ** decimals), decimals: decimals})
+        );
+    }
+
+    function _boundFuzzLoan(FuzzLoan memory params) internal virtual override returns (Starport.Loan memory loan) {
+        loan.terms = _boundFuzzLenderTerms();
+
+        vm.assume(params.collateral.length != 0);
+
+        params.collateralLength =
+            _bound(params.collateralLength, 1, params.collateral.length < 4 ? params.collateral.length : 4);
+
+        SpentItem[] memory ret = new SpentItem[](params.collateralLength);
+
+        for (uint256 i; i < params.collateralLength; i++) {
             ret[i] = _boundSpentItem(params.collateral[i]);
         }
+
         loan.collateral = ret;
+
         SpentItem[] memory debt = new SpentItem[](1);
         debt[0] = SpentItem({
             itemType: ItemType.ERC20,
@@ -161,10 +116,16 @@ contract TestFuzzV1 is AstariaV1Test, TestFuzzStarport {
     }
 
     function _skipToRepayment(Starport.Loan memory goodLoan) internal virtual override {
-        skip(_boundMax(1, uint256(3 * 365 days)));
+        skip(_bound(_random(), 1, uint256(3 * 365 days)));
     }
 
-    function willArithmeticOverflow(Starport.Loan memory loan) internal view virtual override returns (bool valid) {
+    function willArithmeticOverflow(Starport.Loan memory loan)
+        internal
+        view
+        virtual
+        override
+        returns (bool willOverflow)
+    {
         vm.assume(AstariaV1Pricing(loan.terms.pricing).validate(loan) == Validation.validate.selector);
         try Pricing(loan.terms.pricing).getPaymentConsideration(loan) returns (
             SpentItem[] memory repayConsideration, SpentItem[] memory carryConsideration
@@ -190,7 +151,7 @@ contract TestFuzzV1 is AstariaV1Test, TestFuzzStarport {
         BaseRecall(goodLoan.terms.status).recall(goodLoan);
         vm.stopPrank();
 
-        skip(_boundMin(0, details.recallWindow + 1));
+        skip(_bound(_random(), details.recallWindow + 1, details.recallWindow + 365 days));
     }
 
     function _skipToRefinance(Starport.Loan memory goodLoan) internal virtual {
@@ -201,24 +162,13 @@ contract TestFuzzV1 is AstariaV1Test, TestFuzzStarport {
         vm.prank(lender.addr);
         BaseRecall(goodLoan.terms.status).recall(goodLoan);
 
-        skip(_bound(0, details.recallWindow / 2, details.recallWindow - 1));
-        console.log("skipped inside recall");
+        if (details.recallWindow > 0) {
+            skip(_boundMax(_random(), details.recallWindow - 1));
+        }
     }
 
     function _generateGoodLoan(FuzzLoan memory params) internal virtual override returns (Starport.Loan memory) {
-        params.debtAmount = _boundMin(params.debtAmount, 1e16);
-        uint256 rate = _boundMax(1e16, 5e16);
-        dataBounds.pricingBoundData =
-            abi.encode(BasePricing.Details({rate: rate, carryRate: _boundMax(0, 1e18), decimals: 18}));
-        dataBounds.statusBoundData = abi.encode(
-            BaseRecall.Details({
-                honeymoon: _boundMax(1 days, 365 days),
-                recallWindow: _boundMax(1 days, 365 days),
-                recallMax: _bound(0, rate, 10e18)
-            })
-        );
-        dataBounds.settlementBoundData = "";
-        return fuzzNewLoanOrigination(params, abi.encode(dataBounds));
+        return fuzzNewLoanOrigination(params);
     }
 
     function _generateSignedCaveatLender(
@@ -243,78 +193,73 @@ contract TestFuzzV1 is AstariaV1Test, TestFuzzStarport {
     function _generateRefinanceCaveat(
         Account memory account,
         Starport.Loan memory goodLoan,
-        SpentItem[] memory considerationPayment,
-        SpentItem[] memory carryPayment,
-        bytes memory pricingData
+        bytes memory newPricingDetails,
+        address refiFulfiller
     ) internal virtual returns (CaveatEnforcer.SignedCaveats memory signedCaveats) {
-        Starport.Loan memory refiLoan = loanCopy(goodLoan);
-        refiLoan.terms.pricingData = pricingData;
-        refiLoan.debt = SP.applyRefinanceConsiderationToLoan(considerationPayment, carryPayment);
-
-        AstariaV1LenderEnforcer.Details memory lenderDetails = AstariaV1LenderEnforcer.Details({
-            matchIdentifier: true,
-            minDebtAmount: refiLoan.debt[0].amount,
-            loan: refiLoan
-        });
-
-        bytes32 salt = bytes32(msg.sig);
-        refiLoan.issuer = account.addr;
-        refiLoan.originator = address(0);
-        refiLoan.start = 0;
-        signedCaveats.caveats = new CaveatEnforcer.Caveat[](1);
-        signedCaveats.salt = salt;
-        signedCaveats.singleUse = true;
-        signedCaveats.deadline = block.timestamp + 1 days;
-        signedCaveats.caveats[0] =
-            CaveatEnforcer.Caveat({enforcer: address(lenderEnforcer), data: abi.encode(lenderDetails)});
-        bytes32 hash = SP.hashCaveatWithSaltAndNonce(
-            account.addr, signedCaveats.singleUse, salt, signedCaveats.deadline, signedCaveats.caveats
-        );
-
-        (uint8 v, bytes32 r, bytes32 s) = vm.sign(account.key, hash);
-        signedCaveats.signature = abi.encodePacked(r, s, v);
-    }
-
-    function testFuzzRefinance(FuzzRefinanceLoan memory params) public virtual override {
-        Starport.Loan memory goodLoan = _generateGoodLoan(params.origination);
-        skip(1);
-        _skipToRefinance(goodLoan);
-
-        uint256 newRate = BaseRecall(goodLoan.terms.status).getRecallRate(goodLoan);
-
-        BasePricing.Details memory newPricingDetails =
-            BasePricing.Details({rate: newRate, carryRate: _boundMax(0, uint256((1e16 * 100))), decimals: 18});
-        Account memory account = makeAndAllocateAccount(params.refiKey);
-
-        address refiFulfiller;
         (
             SpentItem[] memory considerationPayment,
             SpentItem[] memory carryPayment,
             AdditionalTransfer[] memory additionalTransfers
-        ) = Pricing(goodLoan.terms.pricing).getRefinanceConsideration(
-            goodLoan, abi.encode(newPricingDetails), refiFulfiller
-        );
+        ) = Pricing(goodLoan.terms.pricing).getRefinanceConsideration(goodLoan, newPricingDetails, refiFulfiller);
+
+        assertEq(additionalTransfers.length, 0, "additional transfers not empty");
+
+        // Burn all of the lender's debt token to avoid overflow
+        vm.startPrank(lender.addr);
+        erc20s[1].transfer(address(0xdead), erc20s[1].balanceOf(lender.addr));
+        vm.stopPrank();
+
+        Starport.Loan memory refiLoan = loanCopy(goodLoan);
+        refiLoan.terms.pricingData = newPricingDetails;
+        refiLoan.debt = SP.applyRefinanceConsiderationToLoan(considerationPayment, carryPayment);
+        refiLoan.issuer = account.addr;
+        refiLoan.originator = address(0);
+        refiLoan.start = 0;
+
+        assertEq(address(goodLoan.debt[0].token), address(refiLoan.debt[0].token), "debt tokens not equal");
+
+        vm.assume(refiLoan.issuer != goodLoan.issuer);
+
+        _issueAndApproveTarget(refiLoan.debt, account.addr, address(SP));
+
+        vm.assume(!willArithmeticOverflow(refiLoan));
+
+        signedCaveats = refiFulfiller != refiLoan.issuer
+            ? super._generateSignedCaveatLender(refiLoan, account, bytes32(msg.sig), true)
+            : _emptyCaveat();
+
+        if (refiFulfiller != refiLoan.issuer) {
+            uint256 caveatDebt =
+                abi.decode(signedCaveats.caveats[0].data, (AstariaV1LenderEnforcer.Details)).loan.debt[0].amount;
+
+            assertEq(caveatDebt, refiLoan.debt[0].amount, "not equal");
+        }
+    }
+
+    function testFuzzRefinance(FuzzRefinanceLoan memory params) public virtual override {
+        Starport.Loan memory goodLoan = _generateGoodLoan(params.origination);
+
+        _skipToRefinance(goodLoan);
+
+        bytes memory newPricingDetails = _boundRefinanceData(goodLoan);
+        Account memory account = makeAndAllocateAccount(params.refiKey);
+
+        address refiFulfiller;
+
         if (params.origination.fulfillerType % 2 == 0) {
             refiFulfiller = goodLoan.borrower;
         } else if (params.origination.fulfillerType % 3 == 0) {
             refiFulfiller = account.addr;
         } else {
-            refiFulfiller = _toAddress(_boundMin(params.skipTime, 100));
+            refiFulfiller = _toAddress(_boundMin(_random(), 100));
         }
-        Starport.Loan memory goodLoan2 = goodLoan;
+
         {
-            CaveatEnforcer.SignedCaveats memory lenderCaveat = refiFulfiller != account.addr
-                ? _generateRefinanceCaveat(
-                    account, goodLoan2, considerationPayment, carryPayment, abi.encode(newPricingDetails)
-                )
-                : _emptyCaveat();
-            vm.prank(address(account.addr));
-            erc20s[1].approve(address(SP), type(uint256).max);
-            assertEq(address(goodLoan2.debt[0].token), address(erc20s[1]), "not equal");
-            assertEq(additionalTransfers.length, 0, "additional transfers not empty");
+            CaveatEnforcer.SignedCaveats memory lenderCaveat =
+                _generateRefinanceCaveat(account, goodLoan, newPricingDetails, refiFulfiller);
 
             vm.prank(refiFulfiller);
-            SP.refinance(account.addr, lenderCaveat, goodLoan2, abi.encode(newPricingDetails), "");
+            SP.refinance(account.addr, lenderCaveat, goodLoan, newPricingDetails, "");
         }
     }
 }
