@@ -89,6 +89,30 @@ contract AstariaV1Test is StarportTest {
         return LenderEnforcer.Details({loan: refiLoan});
     }
 
+    function generateDefaultERC20LoanTerms() public view virtual returns (Starport.Loan memory) {
+        SpentItem[] memory newCollateral = new SpentItem[](1);
+        newCollateral[0] = SpentItem({itemType: ItemType.ERC20, token: address(erc20s[1]), identifier: 0, amount: 1e6});
+        SpentItem[] memory newDebt = new SpentItem[](1);
+        newDebt[0] = SpentItem({itemType: ItemType.ERC20, token: address(erc20s[0]), identifier: 0, amount: 1e18});
+        return Starport.Loan({
+            start: 0,
+            custodian: address(custodian),
+            borrower: borrower.addr,
+            issuer: lender.addr,
+            originator: address(0),
+            collateral: newCollateral,
+            debt: newDebt,
+            terms: Starport.Terms({
+                status: address(status),
+                settlement: address(settlement),
+                pricing: address(pricing),
+                pricingData: defaultPricingData,
+                settlementData: defaultSettlementData,
+                statusData: defaultStatusData
+            })
+        });
+    }
+
     // loan.borrower and signer.addr could be mismatched
     function _generateSignedCaveatBorrower(Starport.Loan memory loan, Account memory signer, bytes32 salt)
         public
